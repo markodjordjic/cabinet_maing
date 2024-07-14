@@ -1,5 +1,18 @@
 import pandas as pd
 
+class BaseCorpus:
+    def __init__(self,
+                 height: int, 
+                 width: int, 
+                 depth: int, 
+                 back_tolerance: int = 2):
+        self.height = height
+        self.width = width
+        self.depth = depth
+        self.back_tolerance = back_tolerance
+        self.side_edge_banding = None
+        self.top_bottom_edge_banding = None
+
 
 class Corpus:
 
@@ -83,8 +96,8 @@ class Corpus:
 
         self.material.append([
             'Back', 
-            (self.height-24-self.back_tolerance), 
-            (self.width-24-self.back_tolerance), 
+            (self.height-12-self.back_tolerance), 
+            (self.width-12-self.back_tolerance), 
             1,
             'No edge banding'
         ])
@@ -219,20 +232,22 @@ class BottomCabinet(Corpus):
         super().__init__(height, width, depth, back_tolerance)
         self.drawers = drawers
         self.drawer_box_sides_banding = None
-        self.drawer_box_front_back_banding = None
-
-        
+        self.drawer_box_front_back_banding = None        
 
     def _compute_drawers(self):
         top_relief = 0
         slide_relief = 25
         back_relief = 50
-        drawer_front_height = self.height - top_relief - 3*self.drawers
-        drawer_front_width = self.width - 3
-        drawer_box_height = drawer_front_height - 25*2
-        drawer_box_width = self.width - 36 - slide_relief
-        drawer_box_inner_width = drawer_box_width - 36
-        drawer_box_depth = self.depth - back_relief
+
+        drawer = Drawer(
+            height=self.height,
+            width=self.width,
+            depth=self.depth,
+            back_tolerance=2,
+            top_relief=top_relief,
+            slide_relief=slide_relief,
+            back_relief=back_relief
+        )
 
         box_sides = [
             'Drawer box, side',
@@ -271,12 +286,63 @@ class BottomCabinet(Corpus):
         return material
 
 
-class Drawer(Corpus):
+class Drawer(BaseCorpus):
 
-    def __init__(self, height: int, width: int, depth: int, back_tolerance: int = 2):
+    def __init__(self, 
+                 height: int, 
+                 width: int, 
+                 depth: int, 
+                 back_tolerance: int = None,  # Bottom tolerance
+                 top_relief = 0,
+                 drawers: int = 1,
+                 slide_relief: int = 25,
+                 back_relief: int = 50):
         super().__init__(height, width, depth, back_tolerance)
-    
-  
+        self.drawers = drawers
+        self.top_relief = top_relief
+        self.slide_relief = slide_relief
+        self.back_relief = back_relief
+        self.drawer_front_height = None
+        self.drawer_front_width = None
+        self.drawer_box_height = None
+        self.drawer_box_width = None
+        self.drawer_box_inner_width = None
+        self.drawer_box_depth = None
+        self.material = []
+
+    def _compute_dimensions(self):
+        self.drawer_front_height = self.height - self.top_relief - 3*self.drawers
+        self.drawer_front_width = self.width - 3
+        self.drawer_box_height = self.drawer_front_height - 25*2
+        self.drawer_box_width = self.width - 36 - self.slide_relief
+        self.drawer_box_inner_width = self.drawer_box_width - 36
+        self.drawer_box_depth = self.depth - self.back_relief
+
+    def _compute_banding(self):
+        if self.drawer_box_inner_width > self.drawer_box_height:
+            self.side_edge_banding = 'dve duze'
+        if self.drawer_box_inner_width < self.drawer_box_height:
+            self.side_edge_banding = 'dve krace'
+        if self.drawer_box_depth > self.drawer_box_height:
+            self.top_bottom_edge_banding = 'dve duze, jedna kraca'
+        if self.drawer_box_depth < self.drawer_box_height:
+            self.top_bottom_edge_banding = 'dve krace, jedna duza'
+
+    def _compute_back(self):
+        back_width = self.drawer_box_inner_width - 12 - self.back_tolerance
+        back_height = self.depth - 12 - self.back_tolerance
+        self.material.append(
+            'Drawer back',
+            back_height,
+            back_width,
+            self.drawers,
+            'No edge banding'
+        )
+
+    def compute_material(self):
+        self._compute_dimensions()
+        self._compute_banding()
+
 class Section:
 
     def __init__(self,
