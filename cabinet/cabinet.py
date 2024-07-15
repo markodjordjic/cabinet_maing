@@ -41,6 +41,7 @@ class Corpus:
     def _sides(self):
 
         self.material.append([
+            'Korpus',
             'Sides', 
             self.height, 
             self.depth, 
@@ -51,6 +52,7 @@ class Corpus:
     def _one_piece_top(self):
 
         self.material.append([
+            'Korpus',
             'Top/bottom', 
             self.inner_width, 
             self.depth,
@@ -61,7 +63,8 @@ class Corpus:
     def _two_piece_top(self):
         
         self.material.extend([  
-            [
+            [   
+                'Korpus',
                 'Bottom', 
                 self.inner_width,
                 self.depth, 
@@ -69,6 +72,7 @@ class Corpus:
                 self.top_bottom_edge_banding
             ],
             [
+                'Korpus',
                 'Top front stretcher', 
                 self.inner_width, 
                 96, 
@@ -76,6 +80,7 @@ class Corpus:
                 self.top_front_stretcher_banding
             ],
             [
+                'Korpus',
                 'Top back stretcher', 
                 self.inner_width, 
                 96, 
@@ -95,9 +100,10 @@ class Corpus:
     def _back(self):
 
         self.material.append([
+            'Ledja',
             'Back', 
-            (self.height-12-self.back_tolerance), 
-            (self.width-12-self.back_tolerance), 
+            self.height-12-self.back_tolerance, 
+            self.width-12-self.back_tolerance, 
             1,
             'No edge banding'
         ])
@@ -111,7 +117,7 @@ class Corpus:
     def _rails(self):
 
         self.material.append(
-            ['Rails', self.inner_width, 96, 2, 'jedna duza']
+            ['Korpus', 'Rails', self.inner_width, 96, 2, 'jedna duza']
         )
 
     def _banding(self):
@@ -130,7 +136,7 @@ class Corpus:
         if self.inner_width < 96:
             self.top_back_stretcher_banding = 'dve krace'
 
-    def compute_material(self):
+    def compute_corpus_material(self):
         self._validate_dimensions()
         self._compute_inner_width()
         self._banding()
@@ -183,6 +189,7 @@ class TopCabinet(Corpus):
 
         return pd.DataFrame.from_records(
             [[
+                'Korpus',
                 'Shelves', 
                 self.inner_width, 
                 self.shelf_depth, 
@@ -197,9 +204,14 @@ class TopCabinet(Corpus):
         door_width = (self.width/self.doors) - horizontal_relief
         door_height = self.height - vertical_relief
         
-        return pd.DataFrame.from_records(
-            [['Door', door_height, door_width, self.doors, self.door_edge_banding]]
-        )
+        return pd.DataFrame.from_records([[
+            'Korpus',
+            'Door', 
+            door_height, 
+            door_width, 
+            self.doors, 
+            self.door_edge_banding
+        ]])
     
     def _sides_edge_banding(self):
         if self.height > self.depth:
@@ -207,9 +219,9 @@ class TopCabinet(Corpus):
         if self.height < self.depth:
             self.side_edge_banding = 'jedna kraca, dve duze'
 
-    def compute_material(self):
+    def compute_corpus_material(self):
         self._sides_edge_banding()
-        corpus_material = super().compute_material()
+        corpus_material = super().compute_corpus_material()
         shelves = self._shelves()
         doors = self._doors()
         material = pd.concat([corpus_material, shelves, doors])
@@ -231,8 +243,6 @@ class BottomCabinet(Corpus):
                  drawers: int = 0):
         super().__init__(height, width, depth, back_tolerance)
         self.drawers = drawers
-        self.drawer_box_sides_banding = None
-        self.drawer_box_front_back_banding = None        
 
     def _compute_drawers(self):
         top_relief = 0
@@ -246,39 +256,26 @@ class BottomCabinet(Corpus):
             back_tolerance=2,
             top_relief=top_relief,
             slide_relief=slide_relief,
-            back_relief=back_relief
+            back_relief=back_relief,
+            drawers=self.drawers
         )
 
-        box_sides = [
-            'Drawer box, side',
-            drawer_box_height,
-            drawer_box_depth,
-            self.drawers*2,
-            'N/A'
-        ]
+        drawer.compute_material()
         
-        box_front_back = [
-            'Drawer box, front/back',
-            drawer_box_height,
-            drawer_box_inner_width,
-            self.drawers*2,
-            'N/A'
-        ]
+        box_sides = drawer.get_drawer_box_sides()
+        
+        box_front_back = drawer.get_drawer_front_back()
+
+        back = drawer.get_drawer_back()
       
-        front = [
-            'Drawer, front', 
-            drawer_front_height, 
-            drawer_front_width,
-            self.drawers,
-            self.drawer_front_banding
-        ]
+        front = drawer.get_drawer_front()
 
         return pd.DataFrame.from_records([
-            box_sides, box_front_back, front
+            box_sides, box_front_back, front, back
         ])
 
-    def compute_material(self):
-        corpus_material = super().compute_material()
+    def compute_corpus_material(self):
+        corpus_material = super().compute_corpus_material()
         drawers = self._compute_drawers()
         material = pd.concat([corpus_material, drawers])
         material.reset_index(inplace=True, drop=True)
@@ -287,6 +284,8 @@ class BottomCabinet(Corpus):
 
 
 class Drawer(BaseCorpus):
+
+    drawer_front_banding = 'u krug'
 
     def __init__(self, 
                  height: int, 
@@ -308,7 +307,9 @@ class Drawer(BaseCorpus):
         self.drawer_box_width = None
         self.drawer_box_inner_width = None
         self.drawer_box_depth = None
-        self.material = []
+        self.drawer_back = None
+        self.drawer_back_height = None
+        self.drawer_back_width = None
 
     def _compute_dimensions(self):
         self.drawer_front_height = self.height - self.top_relief - 3*self.drawers
@@ -329,19 +330,54 @@ class Drawer(BaseCorpus):
             self.top_bottom_edge_banding = 'dve krace, jedna duza'
 
     def _compute_back(self):
-        back_width = self.drawer_box_inner_width - 12 - self.back_tolerance
-        back_height = self.depth - 12 - self.back_tolerance
-        self.material.append(
-            'Drawer back',
-            back_height,
-            back_width,
-            self.drawers,
-            'No edge banding'
-        )
+        self.drawer_back_width =  self.drawer_box_inner_width - 12 - self.back_tolerance
+        self.drawer_back_height = self.depth - 12 - self.back_tolerance
 
     def compute_material(self):
         self._compute_dimensions()
         self._compute_banding()
+        self._compute_back()
+
+    def get_drawer_box_sides(self):
+        return [
+            'Drawer, box, side',
+            self.drawer_box_depth,
+            self.drawer_box_height,
+            self.drawers*2,
+            self.side_edge_banding
+        ]
+
+    def get_drawer_front_back(self):
+        return [
+            'Korpus',
+            'Drawer, box, front/back',
+            self.drawer_box_height,
+            self.drawer_box_inner_width,
+            self.drawers*2,
+            self.top_bottom_edge_banding
+        ]
+
+    def get_drawer_front(self):
+        return [
+            'Korpus',
+            'Drawer, box, front',
+            self.drawer_front_height,
+            self.drawer_front_width,
+            self.drawers,
+            self.drawer_front_banding
+        ]
+
+    def get_drawer_back(self):
+        return [
+            'Lesonit',
+            'Drawer, back',
+            self.drawer_back_height,
+            self.drawer_back_width,
+            self.drawers,
+            'No banding'
+        ]
+
+
 
 class Section:
 
@@ -357,7 +393,8 @@ class Section:
                  back_tolerance: int = 2,
                  dividers: int = 0,
                  stretchers: int = 0,
-                 top: str='one_piece'):
+                 top: str='one_piece',
+                 drawers: int = 0):
         self.room = room
         self.section = section
         self.base_name = base_name
@@ -370,6 +407,7 @@ class Section:
         self.dividers = dividers
         self.stretchers = stretchers
         self.top = top
+        self.drawers = drawers
 
     def make_cabinets(self):
         cabinet_inventory = []
@@ -383,15 +421,24 @@ class Section:
                 # shelves=self.shelves,
                 # top_type=self.top,
                 back_tolerance=self.back_tolerance,
-                drawers=3
+                drawers=self.drawers
             )
-            cabinet_material = cabinet.compute_material()
-            meta_index = pd.DataFrame.from_records(len(cabinet_material) * [meta])
+            cabinet_material = cabinet.compute_corpus_material()
+            meta_index = \
+                pd.DataFrame.from_records(len(cabinet_material) * [meta])
             cabinet_and_meta = pd.concat(
                 (meta_index, cabinet_material), axis=1
             )
             cabinet_and_meta.columns = [
-                'Room', 'Section', 'Name', 'Part', 'X', 'Y', 'Units', 'Banding'
+                'Room', 
+                'Section', 
+                'Name', 
+                'Materijal', 
+                'Part', 
+                'X', 
+                'Y', 
+                'Units', 
+                'Banding'
             ]
             cabinet_inventory.extend([cabinet_and_meta])
         

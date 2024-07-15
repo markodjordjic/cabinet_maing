@@ -14,7 +14,8 @@ if __name__ == '__main__':
         depth=608,
         shelves=2,
         top='one_piece',
-        back_tolerance=2
+        back_tolerance=2,
+        drawers=5
     )
 
     kitchen_top = section.make_cabinets()
