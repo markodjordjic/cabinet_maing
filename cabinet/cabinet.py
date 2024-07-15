@@ -1,6 +1,9 @@
 import pandas as pd
 
 class BaseCorpus:
+    """Dimensions
+
+    """
     def __init__(self,
                  height: int, 
                  width: int, 
@@ -15,6 +18,14 @@ class BaseCorpus:
 
 
 class Corpus(BaseCorpus):
+    """Dimensions and edge banding according to Corpus type
+
+    Parameters
+    ----------
+    BaseCorpus : (str) Indication of corpus type
+        `Top` or `Bottom` cabinets
+
+    """
 
     def __init__(self,
                  height: int,
@@ -151,21 +162,34 @@ class Corpus(BaseCorpus):
 
 
 class TopCabinet(Corpus):
+    """_summary_
+
+    Parameters
+    ----------
+    Corpus : _type_
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
+
+    top_type: str = 'one_piece',
+    door_edge_banding = 'u krug'
 
     def __init__(self, 
                  height: int, 
                  width: int, 
                  depth: int, 
                  back_tolerance: int = 2, 
-                 top_type: str = 'one_piece',
                  shelves: int = 0,
                  doors: int = 1):
-        super().__init__(height, width, depth, back_tolerance, top_type)
+        super().__init__(height, width, depth, back_tolerance)
         self.shelves = shelves
         self.doors = doors
         self.shelf_depth = None
         self.shelf_edge_banding = None
-        self.door_edge_banding = 'u krug'
 
     def _compute_shelf_depth(self):
         front_relief = 4
@@ -184,16 +208,14 @@ class TopCabinet(Corpus):
         self._compute_shelf_depth()
         self._shelf_edge_banding()
 
-        return pd.DataFrame.from_records(
-            [[
-                'Korpus',
-                'Shelves', 
-                self.inner_width, 
-                self.shelf_depth, 
-                self.shelves,
-                self.shelf_edge_banding
-            ]]
-        )
+        return pd.DataFrame.from_records([[
+            'Korpus',
+            'Shelves', 
+            self.inner_width, 
+            self.shelf_depth, 
+            self.shelves,
+            self.shelf_edge_banding
+        ]])
     
     def _doors(self):
         vertical_relief = 0
@@ -216,7 +238,7 @@ class TopCabinet(Corpus):
         if self.height < self.depth:
             self.side_edge_banding = 'jedna kraca, dve duze'
 
-    def compute_corpus_material(self):
+    def compute_total_material(self):
         self._sides_edge_banding()
         corpus_material = super().compute_corpus_material()
         shelves = self._shelves()
@@ -228,6 +250,18 @@ class TopCabinet(Corpus):
 
 
 class BottomCabinet(Corpus):
+    """Generic bottom cabinets
+
+    Parameters
+    ----------
+    Corpus : _type_
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
 
     top_type = 'two_piece'
     drawer_front_banding = 'u krug'
@@ -271,7 +305,7 @@ class BottomCabinet(Corpus):
             box_sides, box_front_back, front, back
         ])
 
-    def compute_corpus_material(self):
+    def compute_total_material(self):
         corpus_material = super().compute_corpus_material()
         drawers = self._compute_drawers()
         material = pd.concat([corpus_material, drawers])
@@ -378,51 +412,69 @@ class Drawer(BaseCorpus):
         ]
 
 
-class Section:
+class Section(BaseCorpus):
 
     def __init__(self,
                  height: int, 
                  width: int, 
                  depth: int, 
-                 shelves: int,
-                 room: str = 'Room',
-                 section: str = 'Section',
-                 base_name: str = 'Name',
-                 total_units: int = 1, 
                  back_tolerance: int = 2,
+                 room: str = 'Room',
+                 section_name: str = 'Section',
+                 base_name: str = 'Name',
+                 total_units: int = 1,
+                 shelves: int = None,
                  dividers: int = 0,
                  stretchers: int = 0,
                  top: str='one_piece',
-                 drawers: int = 0):
+                 drawers: int = None,
+                 doors: int = None, 
+                 cabinet_type: 'str' = 'top'):
+        super().__init__(height, width, depth, back_tolerance)       
         self.room = room
-        self.section = section
+        self.section = section_name
         self.base_name = base_name
         self.total_units = total_units
-        self.height = height
-        self.width = width
-        self.depth = depth
         self.shelves = shelves
-        self.back_tolerance = back_tolerance
         self.dividers = dividers
         self.stretchers = stretchers
         self.top = top
         self.drawers = drawers
+        self.doors = doors
+        self.type = cabinet_type
+
+    def _return_cabinet(self):
+        cabinet = None
+
+        if self.type == 'top':
+            cabinet = TopCabinet(
+                height=self.height,
+                width=self.width,
+                depth=self.depth,
+                back_tolerance=self.back_tolerance,
+                shelves=self.shelves,
+                doors=self.doors
+            )
+        
+        if self.type == 'bottom_drawers':
+            cabinet = BottomCabinet(
+                height=self.height,
+                width=self.width,
+                depth=self.depth,
+                back_tolerance=self.back_tolerance,
+                drawers=self.drawers
+            )
+
+
+        return cabinet
 
     def make_cabinets(self):
         cabinet_inventory = []
         for index in range(0, self.total_units):
             cabinet_name = self.base_name + ' ' + str(index+1)
             meta = [self.room, self.section, cabinet_name] 
-            cabinet = BottomCabinet(
-                height=self.height,
-                width=self.width,
-                depth=self.depth,
-                # shelves=self.shelves,
-                # top_type=self.top,
-                back_tolerance=self.back_tolerance,
-                drawers=self.drawers
-            )
-            cabinet_material = cabinet.compute_corpus_material()
+            cabinet = self._return_cabinet()
+            cabinet_material = cabinet.compute_total_material()
             meta_index = \
                 pd.DataFrame.from_records(len(cabinet_material) * [meta])
             cabinet_and_meta = pd.concat(
@@ -443,24 +495,3 @@ class Section:
         
         return pd.concat(cabinet_inventory)
 
-if __name__ == '__main__':
-
-    section = Section(
-        room='Kitchen',
-        section='Top',
-        base_name='Right',
-        total_units=5,
-        height=800,
-        width=448,
-        depth=608,
-        shelves=2,
-        top='one_piece',
-        back_tolerance=2
-    )
-
-    kitchen_top = section.make_cabinets()
-
-    summary = kitchen_top.groupby(by=['Part', 'X', 'Y']).aggregate({
-        'Units': sum,
-        'Banding': min
-    })
