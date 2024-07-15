@@ -14,18 +14,15 @@ class BaseCorpus:
         self.top_bottom_edge_banding = None
 
 
-class Corpus:
+class Corpus(BaseCorpus):
 
     def __init__(self,
-                 height: int, 
-                 width: int, 
-                 depth: int, 
-                 back_tolerance: int = 2,
+                 height: int,
+                 width: int,
+                 depth: int,
+                 back_tolerance: int,
                  top_type: str = 'one_piece'):
-        self.height = height
-        self.width = width
-        self.depth = depth
-        self.back_tolerance = back_tolerance
+        super().__init__(height, width, depth, back_tolerance)       
         self.top_type = top_type
         self.inner_width = None
         self.material = []
@@ -100,7 +97,7 @@ class Corpus:
     def _back(self):
 
         self.material.append([
-            'Ledja',
+            'Lesonit',
             'Back', 
             self.height-12-self.back_tolerance, 
             self.width-12-self.back_tolerance, 
@@ -205,7 +202,7 @@ class TopCabinet(Corpus):
         door_height = self.height - vertical_relief
         
         return pd.DataFrame.from_records([[
-            'Korpus',
+            'Front',
             'Door', 
             door_height, 
             door_width, 
@@ -312,7 +309,8 @@ class Drawer(BaseCorpus):
         self.drawer_back_width = None
 
     def _compute_dimensions(self):
-        self.drawer_front_height = self.height - self.top_relief - 3*self.drawers
+        self.drawer_front_height = \
+            self.height - self.top_relief - 3*self.drawers
         self.drawer_front_width = self.width - 3
         self.drawer_box_height = self.drawer_front_height - 25*2
         self.drawer_box_width = self.width - 36 - self.slide_relief
@@ -330,7 +328,8 @@ class Drawer(BaseCorpus):
             self.top_bottom_edge_banding = 'dve krace, jedna duza'
 
     def _compute_back(self):
-        self.drawer_back_width =  self.drawer_box_inner_width - 12 - self.back_tolerance
+        self.drawer_back_width =  \
+            self.drawer_box_inner_width - 12 - self.back_tolerance
         self.drawer_back_height = self.depth - 12 - self.back_tolerance
 
     def compute_material(self):
@@ -340,6 +339,7 @@ class Drawer(BaseCorpus):
 
     def get_drawer_box_sides(self):
         return [
+            'Korpus',
             'Drawer, box, side',
             self.drawer_box_depth,
             self.drawer_box_height,
@@ -359,7 +359,7 @@ class Drawer(BaseCorpus):
 
     def get_drawer_front(self):
         return [
-            'Korpus',
+            'Front',
             'Drawer, box, front',
             self.drawer_front_height,
             self.drawer_front_width,
@@ -376,7 +376,6 @@ class Drawer(BaseCorpus):
             self.drawers,
             'No banding'
         ]
-
 
 
 class Section:

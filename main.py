@@ -20,7 +20,10 @@ if __name__ == '__main__':
 
     kitchen_top = section.make_cabinets()
 
-    summary = kitchen_top.groupby(by=['Part', 'X', 'Y']).aggregate({
+    summary = kitchen_top.groupby(by=['Materijal', 'Part', 'X', 'Y']).aggregate({
         'Units': sum,
         'Banding': min
     })
+
+    with pd.ExcelWriter('materijal.xlsx') as writer:
+        summary.to_excel(excel_writer=writer, sheet_name='MATERIJAL', )
