@@ -33,7 +33,10 @@ class Corpus(BaseCorpus):
                  depth: int,
                  back_tolerance: int,
                  top_type: str = 'one_piece'):
-        super().__init__(height, width, depth, back_tolerance)       
+        super().__init__(height=height, 
+                         width=width, 
+                         depth=depth, 
+                         back_tolerance=back_tolerance)       
         self.top_type = top_type
         self.inner_width = None
         self.material = []
@@ -110,8 +113,8 @@ class Corpus(BaseCorpus):
         self.material.append([
             'Lesonit',
             'Back', 
-            self.height-12-self.back_tolerance, 
-            self.width-12-self.back_tolerance, 
+            self.height - 12 - self.back_tolerance, 
+            self.width - 12 - self.back_tolerance, 
             1,
             'No edge banding'
         ])
@@ -153,11 +156,6 @@ class Corpus(BaseCorpus):
         self._back()
         self._rails()
 
-        #return pd.DataFrame.from_records(self.material)
-
-        # if self.top_type == 'two-piece':
-        #     output = pd.DataFrame.from_records([sides, *tops_and_bottoms, back])
-
         return pd.DataFrame.from_records(self.material)
 
 
@@ -175,17 +173,21 @@ class TopCabinet(Corpus):
         _description_
     """
 
-    top_type: str = 'one_piece',
     door_edge_banding = 'u krug'
 
     def __init__(self, 
                  height: int, 
                  width: int, 
                  depth: int, 
+                 top_type: str = 'one-piece',
                  back_tolerance: int = 2, 
                  shelves: int = 0,
                  doors: int = 1):
-        super().__init__(height, width, depth, back_tolerance)
+        super().__init__(height=height, 
+                         width=width, 
+                         depth=depth,
+                         top_type=top_type,
+                         back_tolerance=back_tolerance)
         self.shelves = shelves
         self.doors = doors
         self.shelf_depth = None
@@ -263,18 +265,24 @@ class BottomCabinet(Corpus):
         _description_
     """
 
-    top_type = 'two_piece'
     drawer_front_banding = 'u krug'
 
     def __init__(self, 
                  height: int, 
                  width: int, 
                  depth: int, 
-                 back_tolerance: int = 2, 
-                 drawers: int = 0):
-        super().__init__(height, width, depth, back_tolerance)
+                 back_tolerance: int = 2,
+                 top_type: str = 'two-piece',
+                 drawers: int = 0,
+                 doors: int = 0,
+                 front_heights: list = []):
+        super().__init__(height=height, 
+                         width=width, 
+                         depth=depth,
+                         top_type=top_type, 
+                         back_tolerance=back_tolerance)
         self.drawers = drawers
-
+    
     def _compute_drawers(self):
         top_relief = 0
         slide_relief = 25
@@ -327,7 +335,10 @@ class Drawer(BaseCorpus):
                  drawers: int = 1,
                  slide_relief: int = 25,
                  back_relief: int = 50):
-        super().__init__(height, width, depth, back_tolerance)
+        super().__init__(height=height, 
+                         width=width, 
+                         depth=depth, 
+                         back_tolerance=back_tolerance)
         self.drawers = drawers
         self.top_relief = top_relief
         self.slide_relief = slide_relief
@@ -426,11 +437,14 @@ class Section(BaseCorpus):
                  shelves: int = None,
                  dividers: int = 0,
                  stretchers: int = 0,
-                 top: str='one_piece',
+                 type: str = 'wall',
                  drawers: int = None,
                  doors: int = None, 
                  cabinet_type: 'str' = 'top'):
-        super().__init__(height, width, depth, back_tolerance)       
+        super().__init__(height=height, 
+                         width=width, 
+                         depth=depth, 
+                         back_tolerance=back_tolerance)       
         self.room = room
         self.section = section_name
         self.base_name = base_name
@@ -438,7 +452,7 @@ class Section(BaseCorpus):
         self.shelves = shelves
         self.dividers = dividers
         self.stretchers = stretchers
-        self.top = top
+        self.type = type
         self.drawers = drawers
         self.doors = doors
         self.type = cabinet_type
@@ -446,7 +460,7 @@ class Section(BaseCorpus):
     def _return_cabinet(self):
         cabinet = None
 
-        if self.type == 'top':
+        if self.type == 'wall':
             cabinet = TopCabinet(
                 height=self.height,
                 width=self.width,
@@ -456,7 +470,7 @@ class Section(BaseCorpus):
                 doors=self.doors
             )
         
-        if self.type == 'bottom_drawers':
+        if self.type == 'floor':
             cabinet = BottomCabinet(
                 height=self.height,
                 width=self.width,
