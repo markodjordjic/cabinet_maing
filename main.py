@@ -1,51 +1,133 @@
 import pandas as pd
-from cabinet.cabinet import Section
+from cabinet.constructions import Section, Cupboard
+from cabinet.measurements import Elevation, ElevationFloorCabinet
 
 
 if __name__ == '__main__':
 
-    top_section = Section(
-        room='Kitchen',
-        section_name='Top',
-        base_name='Right',
-        total_units=4,
-        height=736,
-        width=640,
-        depth=320,
-        shelves=2,
-        top='one_piece',
-        doors=1,
-        back_tolerance=2,
-        cabinet_type='top'
-    )
-
-    kitchen_top = top_section.make_cabinets()
-
     bottom_section = Section(
-        room='Kitchen',
-        section_name='Bottom',
-        base_name='Right',
-        total_units=4,
-        height=800,
-        width=640,
+        room='Living Room',
+        section_name='Documentation Cabinet',
+        base_name='Documentation',
+        cabinet_type='floor',
+        total_units=2,
+        height=704,
+        width=448,
         depth=608,
-        top='two_piece',
         back_tolerance=2,
-        drawers=3,
-        cabinet_type='bottom_drawers'
+        drawers=4,
+        top_relief=0
     )
 
     kitchen_bottom = bottom_section.make_cabinets()
 
-
-    complete = pd.concat((kitchen_top, kitchen_bottom), axis=0)
+    #complete = pd.concat((kitchen_bottom), axis=0)
 
     summary = \
-        complete.groupby(by=['Materijal', 'Part', 'X', 'Y']).aggregate({
+        kitchen_bottom.groupby(by=['Materijal', 'Part', 'X', 'Y']).aggregate({
         'Units': sum,
         'Banding': min
     })
 
 
-    with pd.ExcelWriter('materijal.xlsx') as writer:
+    with pd.ExcelWriter('console_material.xlsx') as writer:
         summary.to_excel(excel_writer=writer, sheet_name='MATERIJAL')
+
+    elevation = ElevationFloorCabinet(
+        height=704,
+        drawers=[176, 176, 176, 176]
+    )
+
+    elevation.compute()
+
+    elevation = Elevation(
+        height=704, 
+        sections=[704],
+        hinges=[0],
+        drawers=[4]
+    )
+    positions = elevation.compute_positions()
+
+    with pd.ExcelWriter('console_elevation.xlsx') as writer:
+        positions.to_excel(excel_writer=writer, sheet_name='ELEVATION')
+
+
+    cupboard_clothes = Cupboard(
+        height=2208,
+        width=608,
+        depth=544,
+        back_tolerance=3,
+        h_dividers=2,
+        drawers=5,
+        drawer_face_height=800,
+        front_sections=[256, 1952],
+        doors_per_section=[1, 1]
+    )
+    cupboard_clothes_material = cupboard_clothes.compute_total_material()
+
+    cupboard_shelves = Cupboard(
+        height=2208,
+        width=608,
+        depth=544,
+        back_tolerance=3,
+        h_dividers=2,
+        drawers=0,
+        drawer_face_height=0,
+        front_sections=[256, 1952],
+        doors_per_section=[1, 1]
+    )
+    cupboard_shelves_material = cupboard_shelves.compute_total_material()
+
+    cupboard_hh_items_1 = Cupboard(
+        height=2208,
+        width=608,
+        depth=544,
+        back_tolerance=3,
+        h_dividers=2,
+        drawers=0,
+        shelves=8,
+        drawer_face_height=0,
+        front_sections=[256, 1952],
+        doors_per_section=[1, 1]
+    )
+    cupboard_hh_items_1_material =  cupboard_hh_items_1.compute_total_material()
+
+    cupboard_hh_items_2 = Cupboard(
+        height=2208,
+        width=608,
+        depth=544,
+        back_tolerance=3,
+        h_dividers=1,
+        drawers=0,
+        drawer_face_height=0,
+        front_sections=[320, 1984],
+        doors_per_section=[1, 1]
+    )
+    cupboard_hh_items_2_material =  cupboard_hh_items_1.compute_total_material()
+
+    cupboard_clothes_material.columns = cupboard_shelves_material.columns =\
+        cupboard_hh_items_1_material.columns = \
+            cupboard_hh_items_2_material.columns = [
+                'Materijal', 
+                'Part', 
+                'X', 
+                'Y', 
+                'Units', 
+                'Banding'
+            ]
+    
+    total_material = pd.concat((
+        cupboard_clothes_material,
+        cupboard_shelves_material,
+        cupboard_hh_items_1_material,
+        cupboard_hh_items_2_material
+    ))
+    summary = \
+        total_material.groupby(by=['Materijal', 'Part', 'X', 'Y']).aggregate({
+        'Units': sum,
+        'Banding': min
+    })
+
+    with pd.ExcelWriter('cupboard.xlsx') as writer:
+        summary.to_excel(excel_writer=writer, sheet_name='MATERIJAL')
+

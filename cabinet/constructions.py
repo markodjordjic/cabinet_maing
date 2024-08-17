@@ -102,10 +102,10 @@ class Corpus(BaseCorpus):
     
     def _top_and_bottom(self):
 
-        if self.top_type == 'one_piece':
+        if self.top_type == 'one-piece':
             self._one_piece_top()
 
-        if self.top_type == 'two_piece':
+        if self.top_type == 'two-piece':
             self._two_piece_top()
     
     def _back(self):
@@ -143,9 +143,11 @@ class Corpus(BaseCorpus):
 
         if self.inner_width > 96:
             self.top_back_stretcher_banding = 'dve duze'
+            self.top_front_stretcher_banding = 'dve duze'
 
         if self.inner_width < 96:
             self.top_back_stretcher_banding = 'dve krace'
+            self.top_front_stretcher_banding = 'dve krace'
 
     def compute_corpus_material(self):
         self._validate_dimensions()
@@ -194,11 +196,12 @@ class TopCabinet(Corpus):
         self.shelf_edge_banding = None
 
     def _compute_shelf_depth(self):
-        front_relief = 4
+        front_relief = 6
         back_relief = 4
         self.shelf_depth = self.depth - front_relief - back_relief
 
     def _shelf_edge_banding(self):
+
         if self.inner_width > self.shelf_depth:
             edge_banding = 'jedna duza'
         else:
@@ -274,17 +277,25 @@ class BottomCabinet(Corpus):
                  back_tolerance: int = 2,
                  top_type: str = 'two-piece',
                  drawers: int = 0,
+                 top_relief: int = 0,
                  doors: int = 0,
-                 front_heights: list = []):
+                 front_heights: list[int] = []):
         super().__init__(height=height, 
                          width=width, 
                          depth=depth,
                          top_type=top_type, 
                          back_tolerance=back_tolerance)
         self.drawers = drawers
+        self.top_relief = top_relief
+        self.drawer_stretcher_banding = 'N/A'
+
+    def _drawer_stretcher_banding(self):
+        if self.inner_width > 96:
+            self.drawer_stretcher_banding = 'dve duza'
+        else:
+            self.drawer_stretcher_banding = 'dve krace'
     
     def _compute_drawers(self):
-        top_relief = 0
         slide_relief = 25
         back_relief = 50
 
@@ -293,7 +304,7 @@ class BottomCabinet(Corpus):
             width=self.width,
             depth=self.depth,
             back_tolerance=2,
-            top_relief=top_relief,
+            top_relief=self.top_relief,
             slide_relief=slide_relief,
             back_relief=back_relief,
             drawers=self.drawers
@@ -312,11 +323,27 @@ class BottomCabinet(Corpus):
         return pd.DataFrame.from_records([
             box_sides, box_front_back, front, back
         ])
+    
+    def _compute_stretchers(self):
+        return pd.DataFrame.from_records(
+                [[
+                    'Korpus',
+                    'Drawer stretcher',
+                    self.inner_width,
+                    96,
+                    self.drawers - 1,
+                    self.drawer_stretcher_banding
+                ]]
+            )           
 
     def compute_total_material(self):
         corpus_material = super().compute_corpus_material()
         drawers = self._compute_drawers()
         material = pd.concat([corpus_material, drawers])
+        if self.drawers > 2:
+            self._drawer_stretcher_banding()
+            drawer_stretcher = self._compute_stretchers()
+            material = pd.concat([corpus_material, drawers, drawer_stretcher])
         material.reset_index(inplace=True, drop=True)
 
         return material
@@ -355,9 +382,9 @@ class Drawer(BaseCorpus):
 
     def _compute_dimensions(self):
         self.drawer_front_height = \
-            self.height - self.top_relief - 3*self.drawers
+            (self.height - self.top_relief - 3*self.drawers) / self.drawers
         self.drawer_front_width = self.width - 3
-        self.drawer_box_height = self.drawer_front_height - 25*2
+        self.drawer_box_height = self.drawer_front_height - 50*2
         self.drawer_box_width = self.width - 36 - self.slide_relief
         self.drawer_box_inner_width = self.drawer_box_width - 36
         self.drawer_box_depth = self.depth - self.back_relief
@@ -383,9 +410,10 @@ class Drawer(BaseCorpus):
         self._compute_back()
 
     def get_drawer_box_sides(self):
+        
         return [
             'Korpus',
-            'Drawer, box, side',
+            'Drawer box, side',
             self.drawer_box_depth,
             self.drawer_box_height,
             self.drawers*2,
@@ -393,9 +421,10 @@ class Drawer(BaseCorpus):
         ]
 
     def get_drawer_front_back(self):
+        
         return [
             'Korpus',
-            'Drawer, box, front/back',
+            'Drawer box, front/back',
             self.drawer_box_height,
             self.drawer_box_inner_width,
             self.drawers*2,
@@ -403,9 +432,10 @@ class Drawer(BaseCorpus):
         ]
 
     def get_drawer_front(self):
+        
         return [
             'Front',
-            'Drawer, box, front',
+            'Drawer, front',
             self.drawer_front_height,
             self.drawer_front_width,
             self.drawers,
@@ -413,9 +443,10 @@ class Drawer(BaseCorpus):
         ]
 
     def get_drawer_back(self):
+        
         return [
             'Lesonit',
-            'Drawer, back',
+            'Drawer box, back',
             self.drawer_back_height,
             self.drawer_back_width,
             self.drawers,
@@ -437,10 +468,10 @@ class Section(BaseCorpus):
                  shelves: int = None,
                  dividers: int = 0,
                  stretchers: int = 0,
-                 type: str = 'wall',
                  drawers: int = None,
+                 top_relief: int = None,
                  doors: int = None, 
-                 cabinet_type: 'str' = 'top'):
+                 cabinet_type: str = 'wall'):
         super().__init__(height=height, 
                          width=width, 
                          depth=depth, 
@@ -452,15 +483,14 @@ class Section(BaseCorpus):
         self.shelves = shelves
         self.dividers = dividers
         self.stretchers = stretchers
-        self.type = type
         self.drawers = drawers
+        self.top_relief = top_relief
         self.doors = doors
-        self.type = cabinet_type
+        self.cabinet_type = cabinet_type
 
-    def _return_cabinet(self):
-        cabinet = None
+    def _select_cabinet_type(self):
 
-        if self.type == 'wall':
+        if self.cabinet_type == 'wall':
             cabinet = TopCabinet(
                 height=self.height,
                 width=self.width,
@@ -470,15 +500,15 @@ class Section(BaseCorpus):
                 doors=self.doors
             )
         
-        if self.type == 'floor':
+        if self.cabinet_type == 'floor':
             cabinet = BottomCabinet(
                 height=self.height,
                 width=self.width,
                 depth=self.depth,
                 back_tolerance=self.back_tolerance,
-                drawers=self.drawers
+                drawers=self.drawers,
+                top_relief=self.top_relief
             )
-
 
         return cabinet
 
@@ -487,7 +517,7 @@ class Section(BaseCorpus):
         for index in range(0, self.total_units):
             cabinet_name = self.base_name + ' ' + str(index+1)
             meta = [self.room, self.section, cabinet_name] 
-            cabinet = self._return_cabinet()
+            cabinet = self._select_cabinet_type()
             cabinet_material = cabinet.compute_total_material()
             meta_index = \
                 pd.DataFrame.from_records(len(cabinet_material) * [meta])
@@ -508,4 +538,162 @@ class Section(BaseCorpus):
             cabinet_inventory.extend([cabinet_and_meta])
         
         return pd.concat(cabinet_inventory)
+
+class Cupboard(Corpus):
+
+    front_edge_banding = 'u krug'
+
+    def __init__(self, 
+                 height: int, 
+                 width: int, 
+                 depth: int, 
+                 back_tolerance: int, 
+                 top_type: str = 'one_piece',
+                 h_dividers: int = 0,
+                 shelves: int = 0,
+                 drawers: int = 0,
+                 drawer_face_height: int = 0,
+                 front_sections: list[int] = [0],
+                 doors_per_section: list[int] = [1]):
+        super().__init__(height=height, 
+                         width=width, 
+                         depth=depth, 
+                         back_tolerance=back_tolerance, 
+                         top_type=top_type)
+        self.h_dividers = h_dividers
+        self.h_divider_depth = None
+        self.h_dividers_banding = 'N/A'
+        self.shelves = shelves
+        self.shelf_depth = None
+        self.shelf_banding = 'N/A'
+        self.drawers = drawers
+        self.drawer_face_height = drawer_face_height
+        self.front_sections = front_sections
+        self.doors_per_section = doors_per_section
+
+    def _compute_h_divider_depth(self):
+        back_relief = 4
+        self.h_divider_depth = self.depth - back_relief
+
+    def _compute_shelf_depth(self):
+        back_relief = 4
+        front_relief = 6
+        self.shelf_depth = self.depth - back_relief - front_relief
+
+    def _compute_banding(self):
+        # h-dividers
+        if self.inner_width > self.h_divider_depth:
+            self.h_dividers_banding = 'jedna duza'
+
+        if self.inner_width < self.h_divider_depth:
+            self.h_dividers_banding = 'jedna kraca'
+
+        # shelves
+        if self.inner_width > self.shelf_depth:
+            self.shelf_banding = 'jedna duza'
+
+        if self.inner_width < self.shelf_depth:
+            self.shelf_banding = 'jedna kraca'
+
+    def _compute_front_sections(self):
+        pass
+
+    def _compute_h_dividers(self):
+        self.material.extend([[
+            'Korpus',
+            'Horizontal Dividers',
+            self.inner_width,
+            self.h_divider_depth,
+            self.h_dividers,
+            self.h_dividers_banding
+        ]])
+        self.material.extend([[
+            'Korpus',
+            'Rails',
+            self.inner_width,
+            96,
+            self.h_dividers,
+            'jedna duza'
+        ]])
+
+    def _compute_shelves(self):
+        self.material.extend([[
+            'Korpus',
+            'Shelves',
+            self.inner_width,
+            self.shelf_depth,
+            self.shelves,
+            self.shelf_banding
+        ]])
+
+    def _compute_drawers(self):
+
+        if self.drawers > 0:
+
+            assert self.drawer_face_height % 32 == 0, \
+                'Drawer dimension not correct.'
+
+            top_relief = 0
+            slide_relief = 25
+            back_relief = 50
+
+            drawer = Drawer(
+                height=self.drawer_face_height,
+                width=self.width,
+                depth=self.depth,
+                back_tolerance=2,
+                top_relief=top_relief,
+                slide_relief=slide_relief,
+                back_relief=back_relief,
+                drawers=self.drawers
+            )
+
+            drawer.compute_material()
+            
+            self.material.extend([drawer.get_drawer_box_sides()])
+            
+            self.material.extend([drawer.get_drawer_front_back()])
+
+            self.material.extend([drawer.get_drawer_back()])
+
+    def _compute_doors(self):
+        sections_total = sum(self.front_sections)
+
+        assert sections_total == self.height, 'Sections not correct.'
+        assert len(self.front_sections) == len(self.doors_per_section), \
+            'Unequal number of doors'
+
+        individual_section_heights = [
+            section_height-3 for section_height in self.front_sections
+        ]
+
+        individual_section_widths = [
+            (self.width/doors_per_section) - 3
+            for doors_per_section in self.doors_per_section
+        ]
+
+        for heights, widths, count in zip(individual_section_heights,
+                                          individual_section_widths,
+                                          self.doors_per_section):
+            self.material.extend([[
+                'Front',
+                'Door',
+                heights,
+                widths,
+                count,
+                self.front_edge_banding
+            ]])                   
+      
+    def compute_total_material(self):
+        super().compute_corpus_material()
+        self._compute_h_divider_depth()
+        self._compute_shelf_depth()
+        self._compute_banding()
+        self._compute_h_dividers()
+        self._compute_shelves()
+        self._compute_front_sections()
+        self._compute_drawers()
+        self._compute_doors()
+
+        return pd.DataFrame.from_records(self.material)
 
