@@ -119,6 +119,13 @@ class ElevationFloorCabinet:
     def compute(self):
         self._validate_measurements()
         self._compute_positions()
+        self._add_positioning_column()
+
+        if self.height - 16 <= self._positions.iloc[-1, 0]:
+            self._positions['positioning'].iloc[-1] = 'BLOCKED'
+            self._positions['positioning'].iloc[0] = 'BLOCKED'
+
+
         # Section indication
         zero_padding = [0] + self.drawers        
         cumulative_heights = np.cumsum(zero_padding)
@@ -128,9 +135,10 @@ class ElevationFloorCabinet:
         ]
 
         for index, (drawer, pair) in enumerate(zip(self.drawers, pairs)):
-            units_per_drawer = int(drawer / 32)
-            median_unit = int(np.median(np.arange(1, units_per_drawer+1)))
-            indexation = pair[0] + (median_unit*32)
+            #units_per_drawer = drawer / 32
+            #median_unit = np.median(np.arange(1, units_per_drawer+1, dtype=int))
+            #indexation = pair[0] + (median_unit*32)
+            indexation = int(pair[0] + (drawer/2))
             indication = self._positions.iloc[:, 1] == indexation
             indication_sum = np.sum(indication.astype(int))
             if indication_sum > 0:
@@ -139,7 +147,9 @@ class ElevationFloorCabinet:
                 indication = self._positions.iloc[:, 1] == (indexation-16)
                 self._positions.loc[indication, 'positioning'] = f'DRAWER_{index}_OFF'
 
-        print('Finished.')   
+    def get_positions(self) -> pd.DataFrame:
+
+        return self._positions
 
 
 

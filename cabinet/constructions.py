@@ -266,6 +266,7 @@ class BottomCabinet(Corpus):
     -------
     _type_
         _description_
+
     """
 
     drawer_front_banding = 'u krug'
@@ -274,9 +275,9 @@ class BottomCabinet(Corpus):
                  height: int, 
                  width: int, 
                  depth: int, 
+                 drawers: list[int],
                  back_tolerance: int = 2,
                  top_type: str = 'two-piece',
-                 drawers: int = 0,
                  top_relief: int = 0,
                  doors: int = 0,
                  front_heights: list[int] = []):
@@ -295,19 +296,18 @@ class BottomCabinet(Corpus):
         else:
             self.drawer_stretcher_banding = 'dve krace'
     
-    def _compute_drawers(self):
-        slide_relief = 25
+    def _compute_drawer(self, front_height):
+        slide_relief = 26  # Attention!
         back_relief = 50
 
         drawer = Drawer(
-            height=self.height,
+            height=front_height,
             width=self.width,
             depth=self.depth,
             back_tolerance=2,
             top_relief=self.top_relief,
             slide_relief=slide_relief,
-            back_relief=back_relief,
-            drawers=self.drawers
+            back_relief=back_relief
         )
 
         drawer.compute_material()
@@ -324,6 +324,14 @@ class BottomCabinet(Corpus):
             box_sides, box_front_back, front, back
         ])
     
+    def _compute_drawers(self):
+        drawers = []
+        for drawer in self.drawers:
+            drawer = self._compute_drawer(front_height=drawer)
+            drawers.extend([drawer])
+
+        return pd.concat(drawers)
+    
     def _compute_stretchers(self):
         return pd.DataFrame.from_records(
                 [[
@@ -331,7 +339,7 @@ class BottomCabinet(Corpus):
                     'Drawer stretcher',
                     self.inner_width,
                     96,
-                    self.drawers - 1,
+                    len(self.drawers) - 1,
                     self.drawer_stretcher_banding
                 ]]
             )           
@@ -340,7 +348,7 @@ class BottomCabinet(Corpus):
         corpus_material = super().compute_corpus_material()
         drawers = self._compute_drawers()
         material = pd.concat([corpus_material, drawers])
-        if self.drawers > 2:
+        if len(self.drawers) > 2:
             self._drawer_stretcher_banding()
             drawer_stretcher = self._compute_stretchers()
             material = pd.concat([corpus_material, drawers, drawer_stretcher])
@@ -359,14 +367,12 @@ class Drawer(BaseCorpus):
                  depth: int, 
                  back_tolerance: int = None,  # Bottom tolerance
                  top_relief = 0,
-                 drawers: int = 1,
                  slide_relief: int = 25,
                  back_relief: int = 50):
         super().__init__(height=height, 
                          width=width, 
                          depth=depth, 
                          back_tolerance=back_tolerance)
-        self.drawers = drawers
         self.top_relief = top_relief
         self.slide_relief = slide_relief
         self.back_relief = back_relief
@@ -381,23 +387,22 @@ class Drawer(BaseCorpus):
         self.drawer_back_width = None
 
     def _compute_dimensions(self):
-        self.drawer_front_height = \
-            (self.height - self.top_relief - 3*self.drawers) / self.drawers
+        self.drawer_front_height = self.height - 3
         self.drawer_front_width = self.width - 3
-        self.drawer_box_height = self.drawer_front_height - 50*2
+        self.drawer_box_height = self.drawer_front_height + 3 - (24*2)
         self.drawer_box_width = self.width - 36 - self.slide_relief
         self.drawer_box_inner_width = self.drawer_box_width - 36
         self.drawer_box_depth = self.depth - self.back_relief
 
     def _compute_banding(self):
         if self.drawer_box_inner_width > self.drawer_box_height:
-            self.side_edge_banding = 'dve duze'
+            self.side_edge_banding = 'dve duze, jedna kraca'
         if self.drawer_box_inner_width < self.drawer_box_height:
-            self.side_edge_banding = 'dve krace'
+            self.side_edge_banding = 'dve krace, jedna duza'
         if self.drawer_box_depth > self.drawer_box_height:
-            self.top_bottom_edge_banding = 'dve duze, jedna kraca'
+            self.top_bottom_edge_banding = 'dve duze'
         if self.drawer_box_depth < self.drawer_box_height:
-            self.top_bottom_edge_banding = 'dve krace, jedna duza'
+            self.top_bottom_edge_banding = 'dve krace'
 
     def _compute_back(self):
         self.drawer_back_width =  \
@@ -413,10 +418,10 @@ class Drawer(BaseCorpus):
         
         return [
             'Korpus',
-            'Drawer box, side',
+            'Drawer, box (side)',
             self.drawer_box_depth,
             self.drawer_box_height,
-            self.drawers*2,
+            2,
             self.side_edge_banding
         ]
 
@@ -424,10 +429,10 @@ class Drawer(BaseCorpus):
         
         return [
             'Korpus',
-            'Drawer box, front/back',
-            self.drawer_box_height,
+            'Drawer, box (face/back)',
             self.drawer_box_inner_width,
-            self.drawers*2,
+            self.drawer_box_height,
+            2,
             self.top_bottom_edge_banding
         ]
 
@@ -436,9 +441,9 @@ class Drawer(BaseCorpus):
         return [
             'Front',
             'Drawer, front',
-            self.drawer_front_height,
             self.drawer_front_width,
-            self.drawers,
+            self.drawer_front_height,
+            1,
             self.drawer_front_banding
         ]
 
@@ -446,10 +451,10 @@ class Drawer(BaseCorpus):
         
         return [
             'Lesonit',
-            'Drawer box, back',
+            'Drawer, box (back)',
             self.drawer_back_height,
             self.drawer_back_width,
-            self.drawers,
+            1,
             'No banding'
         ]
 
@@ -468,7 +473,7 @@ class Section(BaseCorpus):
                  shelves: int = None,
                  dividers: int = 0,
                  stretchers: int = 0,
-                 drawers: int = None,
+                 drawers: list[int] = [None],
                  top_relief: int = None,
                  doors: int = None, 
                  cabinet_type: str = 'wall'):
