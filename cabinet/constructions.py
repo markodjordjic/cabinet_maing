@@ -316,7 +316,7 @@ class BottomCabinet(Corpus):
         
         box_front_back = drawer.get_drawer_front_back()
 
-        back = drawer.get_drawer_back()
+        back = drawer.get_drawer_bottom()
       
         front = drawer.get_drawer_front()
 
@@ -379,8 +379,8 @@ class Drawer(BaseCorpus):
         self.drawer_box_inner_width = None
         self.drawer_box_depth = None
         self.drawer_back = None
-        self.drawer_back_height = None
-        self.drawer_back_width = None
+        self.drawer_bottom_width = None
+        self.drawer_bottom_depth = None
 
     def _compute_dimensions(self):
         self.drawer_front_height = self.height - 3
@@ -400,15 +400,16 @@ class Drawer(BaseCorpus):
         if self.drawer_box_depth < self.drawer_box_height:
             self.top_bottom_edge_banding = 'dve krace'
 
-    def _compute_back(self):
-        self.drawer_back_width =  \
-            self.drawer_box_inner_width - 12 - self.back_tolerance
-        self.drawer_back_height = self.depth - 12 - self.back_tolerance
+    def _compute_bottom(self):
+        self.drawer_bottom_width =  \
+            self.drawer_bottom_width - (2*12) - self.back_tolerance
+        self.drawer_bottom_depth = \
+            self.drawer_box_depth - (2*12) - self.back_tolerance
 
     def compute_material(self):
         self._compute_dimensions()
         self._compute_banding()
-        self._compute_back()
+        self._compute_bottom()
 
     def get_drawer_box_sides(self):
         
@@ -443,13 +444,13 @@ class Drawer(BaseCorpus):
             self.drawer_front_banding
         ]
 
-    def get_drawer_back(self):
+    def get_drawer_bottom(self):
         
         return [
             'Lesonit',
-            'Drawer, box (back)',
-            self.drawer_back_height,
-            self.drawer_back_width,
+            'Drawer, box (bottom)',
+            self.drawer_bottom_width,
+            self.drawer_bottom_depth,
             1,
             'No banding'
         ]
