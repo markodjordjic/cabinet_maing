@@ -402,7 +402,7 @@ class Drawer(BaseCorpus):
 
     def _compute_bottom(self):
         self.drawer_bottom_width =  \
-            self.drawer_bottom_width - (2*12) - self.back_tolerance
+            self.drawer_box_width - (2*12) - self.back_tolerance
         self.drawer_bottom_depth = \
             self.drawer_box_depth - (2*12) - self.back_tolerance
 
