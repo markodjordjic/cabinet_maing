@@ -31,7 +31,7 @@ if __name__ == '__main__':
 
 
     with pd.ExcelWriter('console_material.xlsx') as writer:
-        summary.to_excel(excel_writer=writer, sheet_name='MATERIJAL')
+        summary.to_excel(excel_writer=writer, sheet_name='MATERIJAL', merge_cells=False)
 
     elevation = ElevationFloorCabinet(
         height=768,

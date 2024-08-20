@@ -363,16 +363,12 @@ class Drawer(BaseCorpus):
 
     def __init__(self, 
                  height: int, 
-                 width: int, 
-                 depth: int, 
-                 back_tolerance: int = None,  # Bottom tolerance
+                 width: int, depth: int, 
+                 back_tolerance: int = 2,
                  top_relief = 0,
-                 slide_relief: int = 25,
+                 slide_relief: int = 26,
                  back_relief: int = 50):
-        super().__init__(height=height, 
-                         width=width, 
-                         depth=depth, 
-                         back_tolerance=back_tolerance)
+        super().__init__(height, width, depth, back_tolerance)
         self.top_relief = top_relief
         self.slide_relief = slide_relief
         self.back_relief = back_relief
@@ -390,7 +386,7 @@ class Drawer(BaseCorpus):
         self.drawer_front_height = self.height - 3
         self.drawer_front_width = self.width - 3
         self.drawer_box_height = self.drawer_front_height + 3 - (24*2)
-        self.drawer_box_width = self.width - 36 - self.slide_relief
+        self.drawer_box_width = self.width - 36 - (2*self.slide_relief)
         self.drawer_box_inner_width = self.drawer_box_width - 36
         self.drawer_box_depth = self.depth - self.back_relief
 
