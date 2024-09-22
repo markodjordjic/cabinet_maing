@@ -1,5 +1,221 @@
+from math import ceil
 import pandas as pd
 import numpy as np
+
+class CupboardElevation:
+
+    def __init__(self, 
+                 height: int,
+                 elevation_file: str,
+                 sections: list[int] = [],
+                 drawers: list[int] = [],
+                 dividers: list[int] = [],
+                 shelves: int = None) -> None:     
+        self.height = height
+        self.sections = sections  # From top, gaps and reveals included.
+        self.dividers = dividers
+        self.shelves = shelves
+        self.drawers = drawers
+        self.elevation_file = elevation_file
+        self._positions = None
+        self._section_indications = None
+
+    def _create_positions(self):
+        positions = []
+        for position in range(0, self.height, 32):
+            positions.extend([position])
+
+        # Compensation for omission of last item in `range`.
+        positions.append(self.height)
+
+        positions_table = pd.DataFrame.from_records(
+            [positions, positions[::-1]]
+        )
+        self._positions = positions_table.transpose()
+        self._positions['skip_indication'] = 'USABLE'
+        self._positions['hinge_indication'] = '-'
+        self._positions['drawer_indication'] = '-'
+        self._positions['shelf_indication'] = '-'
+        self._positions['divider_indication'] = '-'
+
+    def _indicate_sections(self):
+        # Section starts, and section ends.
+        zero_padding = [0] + self.sections        
+        cumulative_heights = np.cumsum(zero_padding)
+        pairs = [
+            [cumulative_heights[i], cumulative_heights[i + 1]]
+            for i in range(len(cumulative_heights) - 1)
+        ]
+        self._section_indications = pairs
+
+    def _indicate_hinges(self):
+        hinge_positions = []
+        hinge_positions_label = []
+        for index, pair in enumerate(self._section_indications):
+            top_hinge_start = pair[0] + 64  # Top hinge hole.
+            top_hinge_end = pair[0] + 96  # Bottom hinge hole.
+            bottom_hinge_start = pair[1] - 96
+            bottom_hinge_end = pair[1] - 64
+            hinge_positions.extend([
+                top_hinge_start, 
+                top_hinge_end, 
+                bottom_hinge_start, 
+                bottom_hinge_end
+            ])
+            hinge_positions_label.extend([
+                f"Section {index}, top hinge (first hole)",
+                f"Section {index}, top hinge (second hole)",
+                f"Section {index}, bottom hinge (first hole)",
+                f"Section {index}, bottom hinge (second hole)"
+            ])
+        # Make markings for system holes.
+        for index, hinge_position in enumerate(hinge_positions):
+            selection = self._positions.iloc[:, 0] == hinge_position
+            self._positions.loc[selection, 'hinge_indication'] = \
+                hinge_positions_label[index]
+            
+    def _indicate_drawers(self):
+        #top_bottom_clarence = 48
+        drawer_face_height = [160, 160, 160, 160]  # With gaps/reveals.
+        starting_position = [96]
+        drawers_from_bottom = starting_position + drawer_face_height        
+        cumulative_drawer_heights = np.cumsum(drawers_from_bottom)
+        drawer_indices = []
+        drawer_indices_labels = []
+        for index, drawer_face in enumerate(drawer_face_height):
+            # One less iteration then cumulative heights, because of different
+            # lengths.
+            drawer_vertical_center = drawer_face / 2
+            drawer_index = cumulative_drawer_heights[index] + drawer_vertical_center
+            drawer_indices.extend([drawer_index])
+            drawer_indices_labels.extend([f"Drawer slide {index}"])
+        for index, drawer_index in enumerate(drawer_indices):
+            selection = self._positions.iloc[:, 1] == drawer_index - 16  # TODO: Addition or subtraction!
+            self._positions.loc[selection, 'drawer_indication'] = drawer_indices_labels[index]
+
+    def _indicate_shelves(self):
+        shelve_positions_label = []
+        shelf_heights =  [self.shelves]*int(self.height/self.shelves)
+        starting_position = [0]
+        drawers_from_bottom = starting_position + shelf_heights        
+        shelve_positions = np.cumsum(drawers_from_bottom)
+        for index, _ in enumerate(shelf_heights):
+            # One less iteration then cumulative heights, because of different
+            # lengths.
+            shelve_positions_label.extend([f"Shelve {index}"])
+        for index, _ in enumerate(shelf_heights):  # From bottom.
+            selection = self._positions.iloc[:, 1] == shelve_positions[index]
+            self._positions.loc[selection, 'shelf_indication'] = \
+                shelve_positions_label[index] 
+            
+    def _indicate_dividers(self):
+        divider_label = []
+        for index, _ in enumerate(self.dividers):
+            # One less iteration then cumulative heights, because of different
+            # lengths.
+            divider_label.extend([f"Divider {index}"])
+        for index, divider in enumerate(self.dividers):  # From top
+            selection = self._positions.iloc[:, 0] == divider
+            self._positions.loc[selection, 'divider_indication'] = \
+                divider_label[index]
+
+    def _make_indications(self): 
+        # Make markings for rail indications.
+        start_indices = [
+            2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1         
+        ]
+        rail_indices = [
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
+        ]
+        last_take_terminate = False
+        last_take_end_index = 0
+        take = 1
+        while last_take_terminate is not True:
+            column_name = f'rail_indices_take_{take}'
+            if take == 1:
+                indices = start_indices
+            else:
+                indices = rail_indices
+            repeats_before = np.repeat(
+                np.nan, repeats=last_take_end_index
+            ).tolist()
+            repeats = len(self._positions)-len(indices)-len(repeats_before)
+            if repeats >= 0:
+                repeats_after = np.repeat(
+                    np.nan, repeats=(len(self._positions)-len(indices)-len(repeats_before))
+                ).tolist()
+            else:
+                truncated_indices = indices[0:len(indices)+repeats]
+                indices = truncated_indices
+                repeats_after = []
+            self._positions[column_name] = \
+                repeats_before + indices + repeats_after
+            where_are_we = self._positions.apply(
+                lambda series: series.last_valid_index()
+            )[column_name]
+            last_take_terminate = \
+                True if (where_are_we+1) == len(self._positions) else False
+            hinge_indication = self._positions['hinge_indication'] == '-'
+            slide_indication = self._positions['drawer_indication'] == '-'
+            shelve_indication = self._positions['shelf_indication'] == '-'
+            divider_indication = \
+                self._positions['divider_indication'] == '-'
+            markings = np.all([
+                hinge_indication, 
+                slide_indication, 
+                shelve_indication, 
+                divider_indication
+            ], axis=0)
+            self._positions.loc[markings, column_name] = np.nan
+            last_take_end_index = self._positions.apply(
+                lambda series: series.last_valid_index()
+            )[column_name]
+            take += 1
+
+    def _make_rail_indications(self):
+        # Make markings for rail indications.
+        rail_indices = [
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2
+        ]
+        repetitions = ceil(len(self._positions)/len(rail_indices))
+        rail_indices_across_height = repetitions * rail_indices
+        self._positions['original_rail_indices'] = \
+            rail_indices_across_height[0:len(self._positions)]       
+        self._positions['rail_indices'] = \
+            rail_indices_across_height[0:len(self._positions)]
+        hinge_indication = self._positions['hinge_indication'] == '-'
+        slide_indication = self._positions['drawer_indication'] == '-'
+        shelve_indication = self._positions['shelf_indication'] == '-'
+        divider_indication = \
+            self._positions['divider_indication'] == '-'
+        markings = np.all([
+            hinge_indication, 
+            slide_indication, 
+            shelve_indication, 
+            divider_indication
+        ], axis=0)
+        self._positions.loc[markings, 'rail_indices'] = '-x-'
+
+    def compute_elevation(self):
+        self._create_positions()
+        if len(self.sections) > 1:
+            self._indicate_sections()
+        self._indicate_hinges()
+        if len(self.drawers) > 0:
+            self._indicate_drawers()
+        if self.shelves:
+            self._indicate_shelves()  
+        if self.dividers:
+            self._indicate_dividers()  
+        self._make_indications()
+    
+    def write_elevation(self):
+        with pd.ExcelWriter(self.elevation_file) as writer:
+            self._positions.to_excel(
+                excel_writer=writer, 
+                sheet_name='ELEVATION',             
+                merge_cells=False
+            )
 
 
 class Elevation:

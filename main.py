@@ -5,6 +5,11 @@ from cabinet.measurements import ElevationFloorCabinet
 
 if __name__ == '__main__':
 
+
+    num, div = 2675, 4
+
+    print ([num // div + (1 if x < num % div else 0)  for x in range (div)])
+
     bottom_section = Section(
         room='Living Room',
         section_name='Documentation Cabinet',
@@ -13,7 +18,7 @@ if __name__ == '__main__':
         total_units=2,
         height=768,
         width=448,
-        depth=608,
+        depth=448,
         back_tolerance=2,
         drawers=[288, 160, 160, 160],
         top_relief=0
