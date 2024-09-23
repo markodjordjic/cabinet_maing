@@ -95,10 +95,12 @@ class CupboardElevation:
 
     def _indicate_shelves(self):
         shelve_positions_label = []
-        shelf_heights =  [self.shelves]*int(self.height/self.shelves)
-        starting_position = [0]
-        drawers_from_bottom = starting_position + shelf_heights        
-        shelve_positions = np.cumsum(drawers_from_bottom)
+        #shelf_heights =  [self.shelves]*int(self.height/self.shelves)
+        shelf_heights = self.shelves
+        # starting_position = [0]
+        # drawers_from_bottom = starting_position + shelf_heights        
+        # shelve_positions = np.cumsum(drawers_from_bottom)
+        shelve_positions = self.shelves
         for index, _ in enumerate(shelf_heights):
             # One less iteration then cumulative heights, because of different
             # lengths.
@@ -122,24 +124,25 @@ class CupboardElevation:
     def _make_indications(self): 
         # Make markings for rail indications.
         start_indices = [
-            2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1         
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1         
         ]
         rail_indices = [
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
         ]
-        last_take_terminate = False
+        terminate = False
         last_take_end_index = 0
         take = 1
-        while last_take_terminate is not True:
+        while terminate is not True:
             column_name = f'rail_indices_take_{take}'
             if take == 1:
                 indices = start_indices
             else:
                 indices = rail_indices
             repeats_before = np.repeat(
-                np.nan, repeats=last_take_end_index
+                np.nan, 
+                repeats=last_take_end_index
             ).tolist()
-            repeats = len(self._positions)-len(indices)-len(repeats_before)
+            repeats = len(self._positions) - len(indices) - len(repeats_before)
             if repeats >= 0:
                 repeats_after = np.repeat(
                     np.nan, repeats=(len(self._positions)-len(indices)-len(repeats_before))
@@ -153,7 +156,7 @@ class CupboardElevation:
             where_are_we = self._positions.apply(
                 lambda series: series.last_valid_index()
             )[column_name]
-            last_take_terminate = \
+            terminate = \
                 True if (where_are_we+1) == len(self._positions) else False
             hinge_indication = self._positions['hinge_indication'] == '-'
             slide_indication = self._positions['drawer_indication'] == '-'
@@ -167,6 +170,13 @@ class CupboardElevation:
                 divider_indication
             ], axis=0)
             self._positions.loc[markings, column_name] = np.nan
+            last_take_end_index_in_loop = self._positions.apply(
+                lambda series: series.last_valid_index()
+            )[column_name]
+            # Needed to avoid permanent loop.
+            if (last_take_end_index >= last_take_end_index_in_loop) or np.isnan(last_take_end_index_in_loop):
+                extension_hole = last_take_end_index+len(indices)
+                self._positions[column_name][extension_hole] = 1
             last_take_end_index = self._positions.apply(
                 lambda series: series.last_valid_index()
             )[column_name]
