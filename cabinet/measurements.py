@@ -175,7 +175,7 @@ class CupboardElevation:
             )[column_name]
             # Needed to avoid permanent loop.
             if (last_take_end_index >= last_take_end_index_in_loop) or np.isnan(last_take_end_index_in_loop):
-                extension_hole = last_take_end_index+len(indices)
+                extension_hole = last_take_end_index+len(indices)-1  # Compensation for indexation from 0.
                 self._positions[column_name][extension_hole] = 1
             last_take_end_index = self._positions.apply(
                 lambda series: series.last_valid_index()
