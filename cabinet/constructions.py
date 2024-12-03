@@ -8,11 +8,13 @@ class BaseCorpus:
                  height: int, 
                  width: int, 
                  depth: int, 
-                 back_tolerance: int = 2):
+                 back_tolerance: int = 2,
+                 back_type: str = 'groove'):
         self.height = height
         self.width = width
         self.depth = depth
         self.back_tolerance = back_tolerance
+        self.back_type = back_type
         self.side_edge_banding = None
         self.top_bottom_edge_banding = None
 
@@ -32,14 +34,17 @@ class Corpus(BaseCorpus):
                  width: int,
                  depth: int,
                  back_tolerance: int,
-                 top_type: str = 'one_piece', 
+                 back_type: 'rabbet',
+                 top_type: str = 'one-piece', 
                  back: bool = True):
         super().__init__(height=height, 
                          width=width, 
                          depth=depth, 
-                         back_tolerance=back_tolerance)       
+                         back_tolerance=back_tolerance,
+                         back_type=back_type)       
         self.top_type = top_type
         self.back = back
+        self.back_type = back_type
         self.inner_width = None
         self.material = []
         self.side_edge_banding = "N/A"
@@ -48,8 +53,10 @@ class Corpus(BaseCorpus):
         self.top_back_stretcher_banding = "N/A"
 
     def _compute_inner_width(self):
+
+        material_thickness = 18
         
-        self.inner_width = self.width - 36
+        self.inner_width = self.width - (material_thickness*2)
  
     def _sides(self):
 
@@ -109,14 +116,35 @@ class Corpus(BaseCorpus):
 
         if self.top_type == 'two-piece':
             self._two_piece_top()
-    
-    def _back(self):
+
+    def _back_groove(self):
+        """Generate material list for the back with groove
+
+        """
+
+        material_remainder = 10
 
         self.material.append([
             'Lesonit',
             'Back', 
-            self.height - 12 - self.back_tolerance, 
-            self.width - 12 - self.back_tolerance, 
+            self.height - (2*material_remainder) - self.back_tolerance, 
+            self.width - (2*material_remainder) - self.back_tolerance, 
+            1,
+            'No edge banding'
+        ])
+
+
+    def _back(self):
+        """Generate material list for the back with rabbet
+
+        """
+        material_remainder = 6
+
+        self.material.append([
+            'Lesonit',
+            'Back', 
+            self.height - (2*material_remainder) - self.back_tolerance, 
+            self.width - (2*material_remainder) - self.back_tolerance, 
             1,
             'No edge banding'
         ])
@@ -164,8 +192,8 @@ class Corpus(BaseCorpus):
         return pd.DataFrame.from_records(self.material)
 
 
-class TopCabinet(Corpus):
-    """_summary_
+class WallCabinet(Corpus):
+    """Wall cabinet measurements and edge banding
 
     Parameters
     ----------
@@ -257,7 +285,7 @@ class TopCabinet(Corpus):
         return material
 
 
-class BottomCabinet(Corpus):
+class FloorCabinet(Corpus):
     """Generic bottom cabinets
 
     Parameters
@@ -278,7 +306,7 @@ class BottomCabinet(Corpus):
                  height: int, 
                  width: int, 
                  depth: int, 
-                 drawers: list[int],
+                 drawers: list[int],  # Height of each drawer w/o gap/reveal.
                  back_tolerance: int = 2,
                  top_type: str = 'two-piece',
                  top_relief: int = 0,
@@ -334,6 +362,9 @@ class BottomCabinet(Corpus):
             drawers.extend([drawer])
 
         return pd.concat(drawers)
+    
+    def _compute_doors(self):
+        pass
     
     def _compute_stretchers(self):
         return pd.DataFrame.from_records(
@@ -500,7 +531,7 @@ class Section(BaseCorpus):
     def _select_cabinet_type(self):
 
         if self.cabinet_type == 'wall':
-            cabinet = TopCabinet(
+            cabinet = WallCabinet(
                 height=self.height,
                 width=self.width,
                 depth=self.depth,
@@ -510,7 +541,7 @@ class Section(BaseCorpus):
             )
         
         if self.cabinet_type == 'floor':
-            cabinet = BottomCabinet(
+            cabinet = FloorCabinet(
                 height=self.height,
                 width=self.width,
                 depth=self.depth,
@@ -551,13 +582,13 @@ class Section(BaseCorpus):
 class Cupboard(Corpus):
 
     front_edge_banding = 'u krug'
+    top_type = 'one-piece'
 
     def __init__(self, 
                  height: int, 
                  width: int, 
                  depth: int, 
                  back_tolerance: int, 
-                 top_type: str = 'one_piece',
                  h_dividers: int = 0,
                  shelves: int = 0,
                  drawers: int = 0,
@@ -568,7 +599,7 @@ class Cupboard(Corpus):
                          width=width, 
                          depth=depth, 
                          back_tolerance=back_tolerance, 
-                         top_type=top_type)
+                         top_type=self.top_type)
         self.h_dividers = h_dividers
         self.h_divider_depth = None
         self.h_dividers_banding = 'N/A'
