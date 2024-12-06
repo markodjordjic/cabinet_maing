@@ -3,6 +3,7 @@ import matplotlib.gridspec as grid
 from matplotlib.patches import Rectangle, Circle
 
 
+
 class CabinetPlotter:
 
     inch_in_mm = 25.4
@@ -10,14 +11,13 @@ class CabinetPlotter:
     paper_width = 8.27
     horizontal_reference = .33
     coefficient = 10
-    unit = inch_in_mm / coefficient / paper_height
-    mm_6 = 6 / unit
-    mm_5 = 5 / unit
-    mm_3 = 3 / unit
-    mm_37 = 37 / unit
-    shelve_clearance_in = 12 / unit 
-    panel_thickness = 18 / unit
-    rail = 96 / unit
+    shelve_clearance_in = 12 / inch_in_mm / coefficient / paper_height 
+    panel_thickness = 18 / inch_in_mm / coefficient / paper_height
+    mm_6 = 6 / inch_in_mm / coefficient / paper_height
+    mm_5 = 5 / inch_in_mm / coefficient / paper_height
+    mm_3 = 3 / inch_in_mm / coefficient / paper_height
+    mm_37 = 37 / inch_in_mm / coefficient / paper_height
+    rail = 96 / inch_in_mm / coefficient / paper_height
 
     def __init__(self, 
                  height: int = None, 
@@ -69,6 +69,9 @@ class CabinetPlotter:
         self.cabinet_top = .5 + (self.cabinet_relative_height/2)
         self.cabinet_bottom = .5 - (self.cabinet_relative_height/2)
 
+    def compute_height_from_center(self):
+        self.height_from_center = .5 - (self.cabinet_relative_height/2)
+
     def _to_inches(self):
         pass
 
@@ -116,6 +119,13 @@ class CabinetPlotter:
         
 
     def plot_cabinet(self):
+        self.compute_dimensions_in_inches()
+        self.compute_scaled_dimensions()
+        self.compute_relative_dimensions()
+        self.compute_reference_dimensions()
+        self.sections_mm_to_inches()
+        # self.compute_drawing_positions_from_pairs()
+        self.compute_section_pairs()
         plt.rcParams["font.size"] = 8
         # Set figure size
         figure = plt.figure(figsize=(self.paper_width, self.paper_height))
@@ -124,38 +134,37 @@ class CabinetPlotter:
         # Box.
         axis_1.add_patch(
             Rectangle(
-                xy=(self.depth_from_center, self.height_from_center), 
+                xy=(self.depth_from_center, self.cabinet_bottom), 
                 width=self.cabinet_relative_depth, 
                 height=self.cabinet_relative_height, 
                 fill=False
             )
         )
-        # System holes.
-        system_holes_positions = [
-            self.height_mm-2240,
-            self.height_mm-2208,
-            self.height_mm-1760,
-            self.height_mm-1728,
-            self.height_mm-1600,
-            self.height_mm-1568,
-            self.height_mm-96,
-            self.height_mm-64
-        ]
-        system_holes_labels = ['S1H1B', 'S1H1T', 'S1H2B', 'S1H2T', 'S2H1B', 'S2H1T', 'S2H2B', 'S2H2T']
-        for index, position in enumerate(system_holes_positions):
-            axis_1.add_patch(
-                Circle(xy=(
-                    self.depth_from_center
-                    + self.cabinet_relative_depth
-                    - self.mm_37, 
-                    (.5+self.cabinet_relative_height/2)-(position/self.unit)
-                ), radius=self.mm_5)
-            )
-            plt.pause(2)
+        # # System holes.
+        # system_holes_positions = [
+        #     self.height_mm-2240,
+        #     self.height_mm-2208,
+        #     self.height_mm-1760,
+        #     self.height_mm-1728,
+        #     self.height_mm-1600,
+        #     self.height_mm-1568,
+        #     self.height_mm-96,
+        #     self.height_mm-64
+        # ]
+        # system_holes_labels = ['S1H1B', 'S1H1T', 'S1H2B', 'S1H2T', 'S2H1B', 'S2H1T', 'S2H2B', 'S2H2T']
+        # for index, position in enumerate(system_holes_positions):
+        #     axis_1.add_patch(
+        #         Circle(xy=(
+        #             self.depth_from_center
+        #             + self.cabinet_relative_depth
+        #             - self.mm_37, 
+        #             (.5+self.cabinet_relative_height/2)-(position/self.unit)
+        #         ), radius=self.mm_5)
+        #     )
         # Bottom.
         axis_1.add_patch(
             Rectangle(
-                xy=(self.depth_from_center, self.height_from_center),
+                xy=(self.depth_from_center, self.cabinet_bottom),
                 width=self.cabinet_relative_depth,
                 height=self.panel_thickness,
                 fill=False,
@@ -205,7 +214,7 @@ class CabinetPlotter:
         )
         # Back.
         axis_1.add_patch(Rectangle(
-            xy=(self.depth_from_center + self.mm_3, self.height_from_center + self.mm_6),
+            xy=(self.depth_from_center + self.mm_3, self.cabinet_bottom + self.mm_6),
             width=self.mm_3,
             height=self.cabinet_relative_height - (2*self.mm_6),
             fill=True,
@@ -213,45 +222,45 @@ class CabinetPlotter:
         ))
         # Empty between the back and the wall.
         axis_1.add_patch(Rectangle(
-            xy=(self.depth_from_center, self.height_from_center + self.mm_6),
+            xy=(self.depth_from_center, self.cabinet_bottom + self.mm_6),
             width=self.mm_3,
             height=self.cabinet_relative_height - (2*self.mm_6),
             fill=True,
             facecolor='white',
             edgecolor=None
         ))
-        # Shelves.
-        for shelve in self.shelves_in_inch:
-            x, y = self.compute_drawing_position(shelve)
-            axis_1.add_patch(Rectangle(
-                xy=(y+self.mm_6, 1-x), 
-                width=self.cabinet_relative_depth - self.shelve_clearance_in, 
-                height=self.panel_thickness, 
-                fill=False,
-                linestyle='--'
-            ))
+        # # Shelves.
+        # for shelve in self.shelves_in_inch:
+        #     x, y = self.compute_drawing_position(shelve)
+        #     axis_1.add_patch(Rectangle(
+        #         xy=(y+self.mm_6, 1-x), 
+        #         width=self.cabinet_relative_depth - self.shelve_clearance_in, 
+        #         height=self.panel_thickness, 
+        #         fill=False,
+        #         linestyle='--'
+        #     ))
         # Elevation.
         # Box.
         axis_1.add_patch(
             Rectangle(
-                xy=(1 - self.depth_from_center*2, self.height_from_center), 
+                xy=(1 - self.depth_from_center*2, self.cabinet_bottom), 
                 width=self.cabinet_relative_width, 
                 height=self.cabinet_relative_height, 
                 fill=True,
                 facecolor='k'
             )
         )
-        # Sections.
-        for index, section_pair in enumerate(self.section_positions):
-            axis_1.add_patch(
-                Rectangle(
-                    xy=((1 - self.depth_from_center*2)+(self.mm_3*.5), section_pair[0][0]+(self.mm_3*.5)), 
-                    width=self.cabinet_relative_width - self.mm_3,  # Compensate for being pushed.
-                    height=(self.sections_inch[index]/self.unit)-(self.mm_3), 
-                    fill=True,
-                    facecolor='lightgray',
-                )
-            )
+        # # Sections.
+        # for index, section_pair in enumerate(self.section_positions):
+        #     axis_1.add_patch(
+        #         Rectangle(
+        #             xy=((1 - self.depth_from_center*2)+(self.mm_3*.5), section_pair[0][0]+(self.mm_3*.5)), 
+        #             width=self.cabinet_relative_width - self.mm_3,  # Compensate for being pushed.
+        #             height=(self.sections_inch[index]/self.unit)-(self.mm_3), 
+        #             fill=True,
+        #             facecolor='lightgray',
+        #         )
+        #     )
         axis_1.tick_params(labeltop=True, labelright=True)
         axis_1.tick_params(axis='both', direction='in')
         axis_1.tick_params(bottom=True, top=True, left=True, right=True) 
