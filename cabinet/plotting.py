@@ -24,7 +24,8 @@ class CabinetPlotter:
                  depth: int = None, 
                  width: int = None,
                  shelves: list[int] = None,
-                 sections: list[int] = None) -> None:
+                 sections: list[int] = None,
+                 section_pairs: list[int] = None) -> None:
         self.height_mm = height
         self.depth_mm = depth
         self.width_mm = width
@@ -44,9 +45,9 @@ class CabinetPlotter:
         self.cabinet_bottom = None
         self.shelves_in_inch = None
         self.sections_inch = None
-        self.section_pairs_mm = None
         self.section_pairs_in = None
-        self.section_pairs = None
+        self.section_pairs = section_pairs
+        self.section_positions = None
     
     def compute_dimensions_in_inches(self):
         self.height_inch = self.height_mm / self.inch_in_mm
@@ -69,11 +70,9 @@ class CabinetPlotter:
         self.cabinet_top = .5 + (self.cabinet_relative_height/2)
         self.cabinet_bottom = .5 - (self.cabinet_relative_height/2)
 
-    def compute_height_from_center(self):
-        self.height_from_center = .5 - (self.cabinet_relative_height/2)
-
-    def _to_inches(self):
-        pass
+    def _to_inches(self, milimeters: list = []):
+        
+        return [mm / self.inch_in_mm for mm in milimeters]
 
     def shelves_mm_to_inches(self):
         self.shelves_in_inch = [
@@ -103,6 +102,7 @@ class CabinetPlotter:
         return drawing_positions
 
     def compute_drawing_positions_from_pairs(self):
+        self.section_pairs_in = [self._to_inches(section) for section in self.section_pairs]
         drawing_positions = []
         for pair in self.section_pairs_in:
             drawing_position_per_pair = []
@@ -117,14 +117,14 @@ class CabinetPlotter:
 
         self.sections_inch = [section/self.inch_in_mm for section in self.sections]
         
-
     def plot_cabinet(self):
         self.compute_dimensions_in_inches()
         self.compute_scaled_dimensions()
         self.compute_relative_dimensions()
         self.compute_reference_dimensions()
         self.sections_mm_to_inches()
-        # self.compute_drawing_positions_from_pairs()
+        self.shelves_mm_to_inches()
+        self.compute_drawing_positions_from_pairs()
         self.compute_section_pairs()
         plt.rcParams["font.size"] = 8
         # Set figure size
@@ -140,27 +140,24 @@ class CabinetPlotter:
                 fill=False
             )
         )
-        # # System holes.
-        # system_holes_positions = [
-        #     self.height_mm-2240,
-        #     self.height_mm-2208,
-        #     self.height_mm-1760,
-        #     self.height_mm-1728,
-        #     self.height_mm-1600,
-        #     self.height_mm-1568,
-        #     self.height_mm-96,
-        #     self.height_mm-64
-        # ]
-        # system_holes_labels = ['S1H1B', 'S1H1T', 'S1H2B', 'S1H2T', 'S2H1B', 'S2H1T', 'S2H2B', 'S2H2T']
-        # for index, position in enumerate(system_holes_positions):
-        #     axis_1.add_patch(
-        #         Circle(xy=(
-        #             self.depth_from_center
-        #             + self.cabinet_relative_depth
-        #             - self.mm_37, 
-        #             (.5+self.cabinet_relative_height/2)-(position/self.unit)
-        #         ), radius=self.mm_5)
-        #     )
+        # System holes.
+        system_holes_positions = [
+            2240,
+            2208,
+            1760,
+            1728,
+            1600,
+            1568,
+            96,
+            64
+        ]
+        system_holes_labels = ['S1H1B', 'S1H1T', 'S1H2B', 'S1H2T', 'S2H1B', 'S2H1T', 'S2H2B', 'S2H2T']
+        for index, position in enumerate(system_holes_positions):
+            x = self.depth_from_center + self.cabinet_relative_depth - self.mm_37
+            y = self.cabinet_bottom+(position/self.inch_in_mm/self.coefficient/self.paper_height)
+            axis_1.add_patch(
+                Circle(xy=(x, y), radius=self.mm_5)
+            )
         # Bottom.
         axis_1.add_patch(
             Rectangle(
@@ -229,16 +226,16 @@ class CabinetPlotter:
             facecolor='white',
             edgecolor=None
         ))
-        # # Shelves.
-        # for shelve in self.shelves_in_inch:
-        #     x, y = self.compute_drawing_position(shelve)
-        #     axis_1.add_patch(Rectangle(
-        #         xy=(y+self.mm_6, 1-x), 
-        #         width=self.cabinet_relative_depth - self.shelve_clearance_in, 
-        #         height=self.panel_thickness, 
-        #         fill=False,
-        #         linestyle='--'
-        #     ))
+        # Shelves.
+        for shelve in self.shelves_in_inch:
+            x, y = self._compute_drawing_position(shelve)
+            axis_1.add_patch(Rectangle(
+                xy=(y+self.mm_6, 1-x), 
+                width=self.cabinet_relative_depth - self.shelve_clearance_in, 
+                height=self.panel_thickness, 
+                fill=False,
+                linestyle='--'
+            ))        
         # Elevation.
         # Box.
         axis_1.add_patch(
@@ -250,17 +247,19 @@ class CabinetPlotter:
                 facecolor='k'
             )
         )
-        # # Sections.
-        # for index, section_pair in enumerate(self.section_positions):
-        #     axis_1.add_patch(
-        #         Rectangle(
-        #             xy=((1 - self.depth_from_center*2)+(self.mm_3*.5), section_pair[0][0]+(self.mm_3*.5)), 
-        #             width=self.cabinet_relative_width - self.mm_3,  # Compensate for being pushed.
-        #             height=(self.sections_inch[index]/self.unit)-(self.mm_3), 
-        #             fill=True,
-        #             facecolor='lightgray',
-        #         )
-        #     )
+        # Sections.
+        for index, section_pair in enumerate(self.section_pairs):
+            axis_1.add_patch(
+                Rectangle(
+                    xy=((1 - self.depth_from_center*2)+(self.mm_3*.5), section_pair[1][0]+(self.mm_3*.5)), 
+                    width=self.cabinet_relative_width - self.mm_3,  # Compensate for being pushed.
+                    height=(
+                        self.sections_inch[index] / self.coefficient / self.paper_height
+                    ) - (self.mm_3), 
+                    fill=True,
+                    facecolor='lightgray',
+                )
+            )
         axis_1.tick_params(labeltop=True, labelright=True)
         axis_1.tick_params(axis='both', direction='in')
         axis_1.tick_params(bottom=True, top=True, left=True, right=True) 

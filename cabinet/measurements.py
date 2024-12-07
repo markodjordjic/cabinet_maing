@@ -227,6 +227,19 @@ class CupboardElevation:
                 merge_cells=False
             )
 
+    def get_system_holes(self):
+        relevant_column_names = [
+            'hinge_indication',
+            'drawer_indication',
+            'shelf_indication',
+            'divider_indication'
+        ]
+        indication = self._positions.loc[:, relevant_column_names] != '-'
+        relevant_rows = np.any(indication, axis=1)
+        
+        return self._positions.loc[relevant_rows, 1]
+
+
 
 class Elevation:
 
