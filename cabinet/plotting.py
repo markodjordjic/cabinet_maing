@@ -3,7 +3,6 @@ import matplotlib.gridspec as grid
 from matplotlib.patches import Rectangle, Circle
 
 
-
 class CabinetPlotter:
 
     inch_in_mm = 25.4
@@ -13,22 +12,30 @@ class CabinetPlotter:
     coefficient = 10
     shelve_clearance_in = 12 / inch_in_mm / coefficient / paper_height 
     panel_thickness = 18 / inch_in_mm / coefficient / paper_height
+    mm_37 = 37 / inch_in_mm / coefficient / paper_height
+    mm_32 = 32 / inch_in_mm / coefficient / paper_height
     mm_6 = 6 / inch_in_mm / coefficient / paper_height
     mm_5 = 5 / inch_in_mm / coefficient / paper_height
     mm_3 = 3 / inch_in_mm / coefficient / paper_height
-    mm_37 = 37 / inch_in_mm / coefficient / paper_height
     rail = 96 / inch_in_mm / coefficient / paper_height
 
     def __init__(self, 
                  height: int = None, 
                  depth: int = None, 
                  width: int = None,
+                 dividers: list[int] = None,
                  shelves: list[int] = None,
+                 drawers: list[int] = None,
+                 drawer_front: list[int] = None,
                  sections: list[int] = None,
-                 section_pairs: list[int] = None) -> None:
+                 section_pairs: list[int] = None,
+                 system_holes: list[int] = None) -> None:
         self.height_mm = height
         self.depth_mm = depth
         self.width_mm = width
+        self.dividers = dividers
+        self.drawers = drawers
+        self.drawer_front = drawer_front
         self.shelves = shelves
         self.sections = sections
         self.height_inch = None
@@ -43,16 +50,25 @@ class CabinetPlotter:
         self.depth_from_center = None
         self.cabinet_top = None
         self.cabinet_bottom = None
+        self.dividers_in = None
         self.shelves_in_inch = None
+        self.drawers_in = None
         self.sections_inch = None
         self.section_pairs_in = None
         self.section_pairs = section_pairs
         self.section_positions = None
+        self.system_holes = system_holes
     
     def compute_dimensions_in_inches(self):
         self.height_inch = self.height_mm / self.inch_in_mm
         self.depth_inch = self.depth_mm / self.inch_in_mm
         self.width_inch = self.width_mm / self.inch_in_mm
+        self.dividers_in = self._to_inches(millimeters=self.dividers)
+        if self.shelves:
+            self.shelves_in_inch = self._to_inches(millimeters=self.shelves)
+        if self.drawers:
+            self.drawers_in = self._to_inches(millimeters=self.drawers)
+        self.sections_inch = self._to_inches(millimeters=self.sections)
 
     def compute_scaled_dimensions(self):
         self.scaled_height = self.height_inch / self.coefficient
@@ -61,8 +77,8 @@ class CabinetPlotter:
 
     def compute_relative_dimensions(self):
         self.cabinet_relative_height = self.scaled_height / self.paper_height
-        self.cabinet_relative_depth = self.scaled_depth / self.paper_width
-        self.cabinet_relative_width = self.scaled_width / self.paper_width
+        self.cabinet_relative_depth = self.scaled_depth / self.paper_height
+        self.cabinet_relative_width = self.scaled_width / self.paper_height
 
     def compute_reference_dimensions(self):
         self.depth_from_center = \
@@ -70,18 +86,11 @@ class CabinetPlotter:
         self.cabinet_top = .5 + (self.cabinet_relative_height/2)
         self.cabinet_bottom = .5 - (self.cabinet_relative_height/2)
 
-    def _to_inches(self, milimeters: list = []):
-        
-        return [mm / self.inch_in_mm for mm in milimeters]
+    def _to_inches(self, millimeters: list = None):
 
-    def shelves_mm_to_inches(self):
-        self.shelves_in_inch = [
-            position/self.inch_in_mm for position in self.shelves
-        ]
-    def sections_mm_to_inches(self):
-        self.sections_inch = [
-            position/self.inch_in_mm for position in self.sections[::-1] # Reverse.
-        ]
+        assert millimeters, 'No measurements provided.'
+        
+        return [mm / self.inch_in_mm for mm in millimeters]
 
     def _compute_drawing_position(self, real_position: int = None):
         scaled_position = real_position / self.coefficient
@@ -102,7 +111,8 @@ class CabinetPlotter:
         return drawing_positions
 
     def compute_drawing_positions_from_pairs(self):
-        self.section_pairs_in = [self._to_inches(section) for section in self.section_pairs]
+        self.section_pairs_in = \
+            [self._to_inches(section) for section in self.section_pairs]
         drawing_positions = []
         for pair in self.section_pairs_in:
             drawing_position_per_pair = []
@@ -122,8 +132,6 @@ class CabinetPlotter:
         self.compute_scaled_dimensions()
         self.compute_relative_dimensions()
         self.compute_reference_dimensions()
-        self.sections_mm_to_inches()
-        self.shelves_mm_to_inches()
         self.compute_drawing_positions_from_pairs()
         self.compute_section_pairs()
         plt.rcParams["font.size"] = 8
@@ -141,23 +149,14 @@ class CabinetPlotter:
             )
         )
         # System holes.
-        system_holes_positions = [
-            2240,
-            2208,
-            1760,
-            1728,
-            1600,
-            1568,
-            96,
-            64
-        ]
-        system_holes_labels = ['S1H1B', 'S1H1T', 'S1H2B', 'S1H2T', 'S2H1B', 'S2H1T', 'S2H2B', 'S2H2T']
-        for index, position in enumerate(system_holes_positions):
+        for index, position in enumerate(self.system_holes['positions']):
             x = self.depth_from_center + self.cabinet_relative_depth - self.mm_37
-            y = self.cabinet_bottom+(position/self.inch_in_mm/self.coefficient/self.paper_height)
-            axis_1.add_patch(
-                Circle(xy=(x, y), radius=self.mm_5)
-            )
+            y = self.cabinet_bottom + (position/self.inch_in_mm/self.coefficient/self.paper_height)
+            axis_1.add_patch(Circle(xy=(x, y), radius=self.mm_5))
+            if 'hinge' not in self.system_holes['labels'][index]:
+                x = self.depth_from_center + self.cabinet_relative_depth - self.mm_37 - (((self.depth_mm/32)-4) * self.mm_32) 
+                axis_1.add_patch(Circle(xy=(x, y), radius=self.mm_5))
+
         # Bottom.
         axis_1.add_patch(
             Rectangle(
@@ -219,28 +218,82 @@ class CabinetPlotter:
         ))
         # Empty between the back and the wall.
         axis_1.add_patch(Rectangle(
-            xy=(self.depth_from_center, self.cabinet_bottom + self.mm_6),
+            xy=(
+                self.depth_from_center, 
+                self.cabinet_bottom + self.mm_6
+            ),
             width=self.mm_3,
             height=self.cabinet_relative_height - (2*self.mm_6),
             fill=True,
             facecolor='white',
             edgecolor=None
         ))
-        # Shelves.
-        for shelve in self.shelves_in_inch:
-            x, y = self._compute_drawing_position(shelve)
+        # Dividers.
+        for divider in self.dividers_in:
+            x, y = self._compute_drawing_position(divider)
             axis_1.add_patch(Rectangle(
                 xy=(y+self.mm_6, 1-x), 
-                width=self.cabinet_relative_depth - self.shelve_clearance_in, 
+                width=self.cabinet_relative_depth - self.mm_6, 
                 height=self.panel_thickness, 
                 fill=False,
-                linestyle='--'
-            ))        
+                hatch='/////'
+            ))      
+            axis_1.add_patch(
+                Rectangle(
+                    xy=(
+                        y + self.mm_6,
+                        1 - x - self.rail
+                    ),
+                    width=self.panel_thickness,
+                    height=self.rail,
+                    fill=False,
+                    hatch='/////'
+                )
+            )  
+        # Shelves.
+        if self.shelves:
+            for shelve in self.shelves_in_inch:
+                x, y = self._compute_drawing_position(shelve)
+                axis_1.add_patch(Rectangle(
+                    xy=(y+self.mm_6, 1-x), 
+                    width=self.cabinet_relative_depth - self.shelve_clearance_in, 
+                    height=self.panel_thickness, 
+                    fill=False,
+                    linestyle='--'
+                ))
+        # Drawers.
+        if self.drawers:
+            for index, drawer in enumerate(self.drawers_in):
+                x, y = self._compute_drawing_position(drawer)
+                drawer_front = \
+                    self.drawer_front[index] / self.inch_in_mm / self.coefficient / self.paper_height
+                drawer_box = drawer_front - (8*self.mm_6)
+                axis_1.add_patch(Rectangle(
+                    xy=(
+                        y + (10*self.mm_5), 
+                        1 - x - (drawer_box/2)
+                    ), 
+                    width=self.cabinet_relative_depth - 10*self.mm_5, 
+                    height=drawer_box,
+                    fill=False
+                ))
+                axis_1.add_patch(Rectangle(
+                    xy=(
+                        self.horizontal_reference + (self.cabinet_relative_depth/2) - self.rail, 
+                        1 - x - (drawer_front/2) - self.mm_6 - self.mm_3
+                    ), 
+                    width=self.rail, 
+                    height=self.panel_thickness,
+                    fill=False,
+                    hatch='/////'
+                ))                
         # Elevation.
         # Box.
+        horisontal_offset = \
+            1 - self.horizontal_reference - (self.cabinet_relative_width/2)
         axis_1.add_patch(
             Rectangle(
-                xy=(1 - self.depth_from_center*2, self.cabinet_bottom), 
+                xy=(horisontal_offset, self.cabinet_bottom), 
                 width=self.cabinet_relative_width, 
                 height=self.cabinet_relative_height, 
                 fill=True,
@@ -251,7 +304,7 @@ class CabinetPlotter:
         for index, section_pair in enumerate(self.section_pairs):
             axis_1.add_patch(
                 Rectangle(
-                    xy=((1 - self.depth_from_center*2)+(self.mm_3*.5), section_pair[1][0]+(self.mm_3*.5)), 
+                    xy=(horisontal_offset+(self.mm_3*.5), section_pair[1][0]+(self.mm_3*.5)), 
                     width=self.cabinet_relative_width - self.mm_3,  # Compensate for being pushed.
                     height=(
                         self.sections_inch[index] / self.coefficient / self.paper_height
