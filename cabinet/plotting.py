@@ -411,7 +411,7 @@ class SectionPlotter:
                     Rectangle(
                         xy=(
                             horizontal_offset+(self.mm_3*.5), 
-                            section_pair[1][0]+(self.mm_3*.5)
+                            1-section_pair[1][0]+(self.mm_3*.5)
                         ), 
                         width=cabinet.cabinet_relative_width - self.mm_3,  # Compensate for being pushed.
                         height=(
