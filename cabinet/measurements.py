@@ -227,6 +227,48 @@ class CupboardElevation:
                 merge_cells=False
             )
 
+    def get_system_holes(self):
+        relevant_column_names = [
+            'hinge_indication',
+            'drawer_indication',
+            'shelf_indication',
+            'divider_indication'
+        ]
+        indication = self._positions.loc[:, relevant_column_names] != '-'
+        relevant_rows = np.any(indication, axis=1)
+
+        occupied_positions = \
+            self._positions.loc[relevant_rows, relevant_column_names]        
+
+        summary_indication = np.array(np.argwhere(indication))
+
+        labels = []
+        for row in range(0, len(summary_indication)):
+            current_row = summary_indication[row].tolist()
+            labels.append(
+                self._positions.iloc[current_row[0], :].loc[relevant_column_names[current_row[1]]]
+            )         
+        
+        return {
+            "positions": self._positions.loc[relevant_rows, 1].tolist(),
+            "labels": labels
+        }
+    
+    def get_drawers(self):
+        relevant_column_names = [
+            'drawer_indication'
+        ]
+        indication = self._positions.loc[:, relevant_column_names] != '-'
+        relevant_rows = np.any(indication, axis=1)
+        
+        return self._positions.loc[relevant_rows, 1].tolist()
+
+    def get_section_indications(self):
+
+        assert self._section_indications, 'No indications.'
+
+        return self._section_indications
+
 
 class Elevation:
 
