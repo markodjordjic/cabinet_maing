@@ -55,11 +55,12 @@ class CabinetPlotter:
         self.dividers_in = None
         self.shelves_in_inch = None
         self.drawers_in = None
-        self.sections_inch = None
+        self.sections_in = None
         self.section_pairs_in = None
         self.section_pairs = section_pairs
         self.section_positions = None
         self.system_holes = system_holes
+        self.section_pairs_positions = None
 
     def _set_orientation(self):
         if self.orientation == 'portrait':
@@ -95,7 +96,7 @@ class CabinetPlotter:
             self.shelves_in_inch = self._to_inches(millimeters=self.shelves)
         if self.drawers:
             self.drawers_in = self._to_inches(millimeters=self.drawers)
-        self.sections_inch = self._to_inches(millimeters=self.sections)
+        self.sections_in = self._to_inches(millimeters=self.sections)
 
     def compute_scaled_dimensions(self):
         self.scaled_height = self.height_inch / self.coefficient
@@ -122,8 +123,10 @@ class CabinetPlotter:
     def _compute_drawing_position(self, real_position: int = None):
         scaled_position = real_position / self.coefficient
         relative_scaled_position = scaled_position / self.paper_height
+        # from_center = \
+        #     (.5+(self.paper_height/2)) - relative_scaled_position
         from_center = \
-            (.5+(self.paper_height/2)) - relative_scaled_position
+            self.cabinet_bottom + relative_scaled_position
 
         return from_center, self.depth_from_center
 
@@ -137,7 +140,7 @@ class CabinetPlotter:
         
         return drawing_positions
 
-    def compute_drawing_positions_from_pairs(self):
+    def compute_section_drawing_positions(self):
         self.section_pairs_in = \
             [self._to_inches(section) for section in self.section_pairs]
         drawing_positions = []
@@ -149,20 +152,16 @@ class CabinetPlotter:
                 drawing_position_per_pair.append(drawing_position)
             drawing_positions.append(drawing_position_per_pair)
         
-        self.section_pairs = drawing_positions
-
-    def compute_section_pairs(self):
-        self.sections_inch = \
-            [section/self.inch_in_mm for section in self.sections]
-        
+        self.section_pairs_positions = drawing_positions
+     
     def plot_cabinet(self, compute_only: bool = False):
+        self._set_orientation()
         self._basic_computations()
         self.compute_dimensions_in_inches()
         self.compute_scaled_dimensions()
         self.compute_relative_dimensions()
         self.compute_reference_dimensions()
-        self.compute_drawing_positions_from_pairs()
-        self.compute_section_pairs()
+        self.compute_section_drawing_positions()
         plt.rcParams["font.size"] = 8
         # Set figure size
         figure = plt.figure(figsize=(self.paper_width, self.paper_height))
@@ -213,7 +212,10 @@ class CabinetPlotter:
         # Top.
         axis_1.add_patch(
             Rectangle(
-                xy=(self.depth_from_center, (self.cabinet_top - self.panel_thickness)),
+                xy=(
+                    self.depth_from_center, 
+                    (self.cabinet_top - self.panel_thickness)
+                ),
                 width=self.cabinet_relative_depth,
                 height=self.panel_thickness,
                 fill=False,
@@ -238,7 +240,10 @@ class CabinetPlotter:
         )
         # Back.
         axis_1.add_patch(Rectangle(
-            xy=(self.depth_from_center + self.mm_3, self.cabinet_bottom + self.mm_6),
+            xy=(
+                self.depth_from_center + self.mm_3, 
+                self.cabinet_bottom + self.mm_6
+            ),
             width=self.mm_3,
             height=self.cabinet_relative_height - (2*self.mm_6),
             fill=True,
@@ -296,19 +301,21 @@ class CabinetPlotter:
                 x, y = self._compute_drawing_position(drawer)
                 drawer_front = self._to_unit(self.drawer_front[index])
                 drawer_box = drawer_front - (8*self.mm_6)
+                # Box.
                 axis_1.add_patch(Rectangle(
                     xy=(
                         y + (10*self.mm_5), 
-                        1 - x - (drawer_box/2)
+                        x - (drawer_box/2)
                     ), 
-                    width=self.cabinet_relative_depth - 10*self.mm_5, 
+                    width=self.cabinet_relative_depth - (10*self.mm_5), 
                     height=drawer_box,
                     fill=False
                 ))
+                # Drawer rail.
                 axis_1.add_patch(Rectangle(
                     xy=(
                         self.horizontal_reference + (self.cabinet_relative_depth/2) - self.rail, 
-                        1 - x - (drawer_front/2) - self.mm_6 - self.mm_3
+                        x - (drawer_box/2) - (self.mm_32)
                     ), 
                     width=self.rail, 
                     height=self.panel_thickness,
@@ -329,10 +336,13 @@ class CabinetPlotter:
             )
         )
         # Sections.
-        for index, section_pair in enumerate(self.section_pairs):
+        for index, section_pair in enumerate(self.section_pairs_positions):
             axis_1.add_patch(
                 Rectangle(
-                    xy=(horizontal_offset+(self.mm_3*.5), section_pair[1][0]+(self.mm_3*.5)), 
+                    xy=(
+                        horizontal_offset+(self.mm_3*.5), 
+                        1-section_pair[1][0]+(self.mm_3*.5)
+                    ), 
                     width=self.cabinet_relative_width - self.mm_3,  # Compensate for being pushed.
                     height=(
                         self._to_unit(self.sections[index])
@@ -396,7 +406,7 @@ class SectionPlotter:
                 )
             )
             # Sections.
-            for index, section_pair in enumerate(cabinet.section_pairs):
+            for index, section_pair in enumerate(cabinet.section_pairs_positions):
                 axis_1.add_patch(
                     Rectangle(
                         xy=(
@@ -405,7 +415,7 @@ class SectionPlotter:
                         ), 
                         width=cabinet.cabinet_relative_width - self.mm_3,  # Compensate for being pushed.
                         height=(
-                            cabinet.sections_inch[index] / self.coefficient / self.paper_height
+                            cabinet.sections_in[index] / self.coefficient / self.paper_height
                         ) - (self.mm_3), 
                         fill=True,
                         facecolor='lightgray',
