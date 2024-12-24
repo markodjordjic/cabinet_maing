@@ -446,20 +446,15 @@ class SectionPlotter:
             # reference point for drawing rectangles in matplotlib is
             # bottom left.
             sections_bottom_to_top = cabinet.sections_in[::-1]
+            total_height = .15
             for index in range(0, len(sections_bottom_to_top)):
                 current_section_height = \
                     sections_bottom_to_top[index] / self.coefficient / self.paper_height
-                if index == 0:
-                    y = .15
-                else:
-                    previous_section_height = \
-                        (sections_bottom_to_top[index-1] / self.coefficient / self.paper_height)
-                    y = .15 + previous_section_height
                 axis_1.add_patch(
                     Rectangle(
                         xy=(
                             horizontal_offset+(self.mm_3*.5),
-                            y
+                            total_height
                         ), 
                         width=cabinet.cabinet_relative_width - self.mm_3,  # Compensate for being pushed.
                         height=current_section_height - (self.mm_3), 
@@ -467,6 +462,7 @@ class SectionPlotter:
                         facecolor='lightgray',
                     )
                 )
+                total_height += current_section_height
         axis_1.tick_params(labeltop=True, labelright=True)
         axis_1.tick_params(axis='both', direction='in')
         axis_1.tick_params(bottom=True, top=True, left=True, right=True) 
