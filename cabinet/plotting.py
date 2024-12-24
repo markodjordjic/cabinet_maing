@@ -77,7 +77,7 @@ class CabinetPlotter:
 
     def _basic_computations(self):
 
-        self.shelve_clearance_in = self._to_unit(12) 
+        self.shelve_clearance_in = self._to_unit(12) # Front 6 mm, back 6 mm.
         self.panel_thickness = self._to_unit(18)
         self.mm_37 = self._to_unit(37)
         self.mm_32 = self._to_unit(32) 
@@ -87,16 +87,17 @@ class CabinetPlotter:
         self.rail = self._to_unit(96)
 
     def compute_dimensions_in_inches(self):
-        self.height_inch = self.height_mm / self.inch_in_mm
-        self.depth_inch = self.depth_mm / self.inch_in_mm
-        self.width_inch = self.width_mm / self.inch_in_mm
+        self.height_inch = self._to_inches(self.height_mm)
+        self.depth_inch = self._to_inches(self.depth_mm)
+        self.width_inch = self._to_inches(self.width_mm)
         if self.dividers:
             self.dividers_in = self._to_inches(millimeters=self.dividers)
         if self.shelves:
             self.shelves_in_inch = self._to_inches(millimeters=self.shelves)
         if self.drawers:
             self.drawers_in = self._to_inches(millimeters=self.drawers)
-        self.sections_in = self._to_inches(millimeters=self.sections)
+        if self.sections:
+            self.sections_in = self._to_inches(millimeters=self.sections)
 
     def compute_scaled_dimensions(self):
         self.scaled_height = self.height_inch / self.coefficient
@@ -114,11 +115,32 @@ class CabinetPlotter:
         self.cabinet_top = .5 + (self.cabinet_relative_height/2)
         self.cabinet_bottom = .5 - (self.cabinet_relative_height/2)
 
-    def _to_inches(self, millimeters: list = None):
+    def _to_inches(self, millimeters: list | int = None) -> list | int:
+        """Conversion of measurements
 
+        Original measurements in millimeters are converted to inches.
+        Method can accept `list` or `integer` objects and returns the
+        object of the same class as the input.
+
+        Parameters
+        ----------
+        millimeters : list | int, optional
+            Original measurements in millimeters, by default None.
+
+        Returns
+        -------
+        list | int
+            Measurements in inches.
+
+        """
         assert millimeters, 'No measurements provided.'
-        
-        return [mm / self.inch_in_mm for mm in millimeters]
+
+        if isinstance(millimeters, list):     
+            output = [mm / self.inch_in_mm for mm in millimeters]
+        else:
+            output = millimeters / self.inch_in_mm
+
+        return output
 
     def _compute_drawing_position(self, real_position: int = None):
         scaled_position = real_position / self.coefficient
@@ -424,9 +446,9 @@ class SectionPlotter:
             # reference point for drawing rectangles in matplotlib is
             # bottom left.
             sections_bottom_to_top = cabinet.sections_in[::-1]
-            for index in enumerate(cabinet.section_pairs_positions):
+            for index in range(0, len(sections_bottom_to_top)):
                 current_section_height = \
-                    (sections_bottom_to_top[index] / self.coefficient / self.paper_height)
+                    sections_bottom_to_top[index] / self.coefficient / self.paper_height
                 if index == 0:
                     y = .15
                 else:
