@@ -123,8 +123,6 @@ class CabinetPlotter:
     def _compute_drawing_position(self, real_position: int = None):
         scaled_position = real_position / self.coefficient
         relative_scaled_position = scaled_position / self.paper_height
-        # from_center = \
-        #     (.5+(self.paper_height/2)) - relative_scaled_position
         from_center = \
             self.cabinet_bottom + relative_scaled_position
 
@@ -164,7 +162,11 @@ class CabinetPlotter:
         self.compute_section_drawing_positions()
         plt.rcParams["font.size"] = 8
         # Set figure size
-        figure = plt.figure(figsize=(self.paper_width, self.paper_height))
+        if compute_only:
+            with plt.ioff():
+                figure = plt.figure(figsize=(self.paper_width, self.paper_height))
+        else:
+            figure = plt.figure(figsize=(self.paper_width, self.paper_height))
         plotting_grid = grid.GridSpec(nrows=1, ncols=1)
         axis_1 = figure.add_subplot(plotting_grid[0, 0])
         # Box.
@@ -199,9 +201,7 @@ class CabinetPlotter:
             Rectangle(
                 xy=(
                     self.depth_from_center + self.mm_6,
-                    (
-                        self.cabinet_bottom + self.panel_thickness
-                    )
+                    self.cabinet_bottom + self.panel_thickness
                 ),
                 width=self.panel_thickness,
                 height=self.rail,
@@ -359,8 +359,7 @@ class CabinetPlotter:
         #figure.subplots_adjust(left=.25, right=.75)
         plt.tight_layout()
         plt.savefig(fname='cabinet.pdf', dpi=1200, format='pdf')
-        if compute_only != True:
-            plt.show()
+        plt.close('all')
 
 
 class SectionPlotter:
@@ -368,7 +367,7 @@ class SectionPlotter:
     inch_in_mm = 25.4
     paper_height = 8.27
     paper_width = 11.69
-    horizontal_reference = .15
+    horizontal_reference = .1
     coefficient = 15
     shelve_clearance_in = 12 / inch_in_mm / coefficient / paper_height 
     panel_thickness = 18 / inch_in_mm / coefficient / paper_height
@@ -390,15 +389,13 @@ class SectionPlotter:
         axis_1 = figure.add_subplot(plotting_grid[0, 0])
         # Elevation.
         # Box.
+        horizontal_offset = .1
         for index, cabinet in enumerate(self.cabinets):
-            horizontal_offset = \
-                1 - self.horizontal_reference - (cabinet.cabinet_relative_width/2)
             if index != 0:
-                horizontal_offset = \
-                    1 - self.horizontal_reference - (cabinet.cabinet_relative_width/2) - self.cabinets[index].cabinet_relative_width 
+                horizontal_offset += cabinet.cabinet_relative_width
             axis_1.add_patch(
                 Rectangle(
-                    xy=(horizontal_offset, cabinet.cabinet_bottom), 
+                    xy=(horizontal_offset, .15), 
                     width=cabinet.cabinet_relative_width, 
                     height=cabinet.cabinet_relative_height, 
                     fill=True,
@@ -406,17 +403,44 @@ class SectionPlotter:
                 )
             )
             # Sections.
-            for index, section_pair in enumerate(cabinet.section_pairs_positions):
+            # for index, section_pair in enumerate(cabinet.section_pairs_positions):
+            #     height = (cabinet.sections_in[index] / self.coefficient / self.paper_height)
+            #     y = 1-(section_pair[1][0]+(self.mm_3*.5))
+            #     print(y, height)
+            #     axis_1.add_patch(
+            #         Rectangle(
+            #             xy=(
+            #                 horizontal_offset+(self.mm_3*.5),
+            #                 y
+            #             ), 
+            #             width=cabinet.cabinet_relative_width - self.mm_3,  # Compensate for being pushed.
+            #             height=height - (self.mm_3), 
+            #             fill=True,
+            #             facecolor='lightgray',
+            #         )
+            #     )
+            # Original sections are listed from top to bottom. In order
+            # to draw them it is necessary to reverse the order, because
+            # reference point for drawing rectangles in matplotlib is
+            # bottom left.
+            sections_bottom_to_top = cabinet.sections_in[::-1]
+            for index in enumerate(cabinet.section_pairs_positions):
+                current_section_height = \
+                    (sections_bottom_to_top[index] / self.coefficient / self.paper_height)
+                if index == 0:
+                    y = .15
+                else:
+                    previous_section_height = \
+                        (sections_bottom_to_top[index-1] / self.coefficient / self.paper_height)
+                    y = .15 + previous_section_height
                 axis_1.add_patch(
                     Rectangle(
                         xy=(
-                            horizontal_offset+(self.mm_3*.5), 
-                            1-section_pair[1][0]+(self.mm_3*.5)
+                            horizontal_offset+(self.mm_3*.5),
+                            y
                         ), 
                         width=cabinet.cabinet_relative_width - self.mm_3,  # Compensate for being pushed.
-                        height=(
-                            cabinet.sections_in[index] / self.coefficient / self.paper_height
-                        ) - (self.mm_3), 
+                        height=current_section_height - (self.mm_3), 
                         fill=True,
                         facecolor='lightgray',
                     )
