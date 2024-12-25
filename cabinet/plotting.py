@@ -20,6 +20,7 @@ class CabinetPlotter:
     rail = None
 
     def __init__(self,
+                 cabinet_type: str = 'floor',
                  orientation: str = 'portrait',
                  height: int = None, 
                  depth: int = None, 
@@ -31,6 +32,7 @@ class CabinetPlotter:
                  sections: list[int] = None,
                  section_pairs: list[int] = None,
                  system_holes: list[int] = None) -> None:
+        self.cabinet_type = cabinet_type
         self.orientation = orientation
         self.height_mm = height
         self.depth_mm = depth
@@ -403,6 +405,8 @@ class SectionPlotter:
 
     def __init__(self, cabinets: list = None):
         self.cabinets = cabinets
+        self.wall_section = []
+        self.floor_section = []
 
     def _plot_section(self):
         plt.rcParams["font.size"] = 8
@@ -410,21 +414,99 @@ class SectionPlotter:
         figure = plt.figure(figsize=(self.paper_width, self.paper_height))
         plotting_grid = grid.GridSpec(nrows=1, ncols=1)
         axis_1 = figure.add_subplot(plotting_grid[0, 0])
-        # Elevation.
-        # Box.
-        horizontal_offset = .15
-        for index, cabinet in enumerate(self.cabinets):
-            if index != 0:
-                horizontal_offset += self.cabinets[index-1].cabinet_relative_width
+        # Elevation, box.
+        horizontal_offset_floor = .15
+        horizontal_offset_wall = .15
+        for index, cabinet in enumerate(self.floor_section):
+            vertical_position = .15
+            total_height = .15
+            # if (index == 0) and (cabinet.cabinet_type == 'wall'):
+            #     horizontal_offset = horizontal_offset_wall
+            #     vertical_position = .65
+            #     total_height = .65
+            #     last_wall = index  
+            if (index != 0):
+                horizontal_offset_floor += self.floor_section[index-1].cabinet_relative_width
             axis_1.add_patch(
                 Rectangle(
-                    xy=(horizontal_offset, .15), 
+                    xy=(horizontal_offset_floor, vertical_position), 
                     width=cabinet.cabinet_relative_width, 
                     height=cabinet.cabinet_relative_height, 
                     fill=True,
                     facecolor='k'
                 )
             )
+            sections_bottom_to_top = cabinet.sections_in[::-1]
+            for index in range(0, len(sections_bottom_to_top)):
+                current_section_height = \
+                    sections_bottom_to_top[index] / self.coefficient / self.paper_height
+                axis_1.add_patch(
+                    Rectangle(
+                        xy=(
+                            horizontal_offset_floor+(self.mm_3*.5),
+                            total_height
+                        ), 
+                        width=cabinet.cabinet_relative_width - self.mm_3,  # Compensate for being pushed.
+                        height=current_section_height - (self.mm_3), 
+                        fill=True,
+                        facecolor='lightgray',
+                    )
+                )
+                total_height += current_section_height
+        for index, cabinet in enumerate(self.wall_section):
+            vertical_position = .65
+            total_height = .65
+            if (index != 0):
+                horizontal_offset_wall += self.wall_section[index-1].cabinet_relative_width
+            axis_1.add_patch(
+                Rectangle(
+                    xy=(horizontal_offset_wall, vertical_position), 
+                    width=cabinet.cabinet_relative_width, 
+                    height=cabinet.cabinet_relative_height, 
+                    fill=True,
+                    facecolor='k'
+                )
+            )
+            sections_bottom_to_top = cabinet.sections_in[::-1]
+            for index in range(0, len(sections_bottom_to_top)):
+                current_section_height = \
+                    sections_bottom_to_top[index] / self.coefficient / self.paper_height
+                axis_1.add_patch(
+                    Rectangle(
+                        xy=(
+                            horizontal_offset_wall+(self.mm_3*.5),
+                            total_height
+                        ), 
+                        width=cabinet.cabinet_relative_width - self.mm_3,  # Compensate for being pushed.
+                        height=current_section_height - (self.mm_3), 
+                        fill=True,
+                        facecolor='lightgray',
+                    )
+                )
+                total_height += current_section_height
+        axis_1.tick_params(labeltop=True, labelright=True)
+        axis_1.tick_params(axis='both', direction='in')
+        axis_1.tick_params(bottom=True, top=True, left=True, right=True) 
+        axis_1.set_xticklabels([])
+        axis_1.set_yticklabels([])
+        #figure.subplots_adjust(left=.25, right=.75)
+        plt.tight_layout()
+        plt.savefig(fname='cabinet.pdf', dpi=1200, format='pdf')
+        plt.show()
+
+    def _reorder_plots(self):
+
+        for cabinet_plot in self.cabinets:
+            match cabinet_plot.cabinet_type:
+                case 'wall':
+                    self.wall_section.append(cabinet_plot)
+                case 'floor':
+                    self.floor_section.append(cabinet_plot)
+
+    def plot_section(self):
+        self._reorder_plots()
+        self._plot_section()
+
             # Sections.
             # for index, section_pair in enumerate(cabinet.section_pairs_positions):
             #     height = (cabinet.sections_in[index] / self.coefficient / self.paper_height)
@@ -446,35 +528,3 @@ class SectionPlotter:
             # to draw them it is necessary to reverse the order, because
             # reference point for drawing rectangles in matplotlib is
             # bottom left.
-            sections_bottom_to_top = cabinet.sections_in[::-1]
-            total_height = .15
-            for index in range(0, len(sections_bottom_to_top)):
-                current_section_height = \
-                    sections_bottom_to_top[index] / self.coefficient / self.paper_height
-                axis_1.add_patch(
-                    Rectangle(
-                        xy=(
-                            horizontal_offset+(self.mm_3*.5),
-                            total_height
-                        ), 
-                        width=cabinet.cabinet_relative_width - self.mm_3,  # Compensate for being pushed.
-                        height=current_section_height - (self.mm_3), 
-                        fill=True,
-                        facecolor='lightgray',
-                    )
-                )
-                total_height += current_section_height
-        axis_1.tick_params(labeltop=True, labelright=True)
-        axis_1.tick_params(axis='both', direction='in')
-        axis_1.tick_params(bottom=True, top=True, left=True, right=True) 
-        axis_1.set_xticklabels([])
-        axis_1.set_yticklabels([])
-        #figure.subplots_adjust(left=.25, right=.75)
-        plt.tight_layout()
-        plt.savefig(fname='cabinet.pdf', dpi=1200, format='pdf')
-        plt.show()
-
-    def plot_section(self):
-        self._plot_section()
-
-        
