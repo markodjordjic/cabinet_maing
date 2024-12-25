@@ -90,6 +90,7 @@ class CabinetPlotter:
         self.height_inch = self._to_inches(self.height_mm)
         self.depth_inch = self._to_inches(self.depth_mm)
         self.width_inch = self._to_inches(self.width_mm)
+        # Non mandatory elements.
         if self.dividers:
             self.dividers_in = self._to_inches(millimeters=self.dividers)
         if self.shelves:
@@ -142,7 +143,7 @@ class CabinetPlotter:
 
         return output
 
-    def _compute_drawing_position(self, real_position: int = None):
+    def _compute_drawing_position(self, real_position: int = None) -> tuple:
         scaled_position = real_position / self.coefficient
         relative_scaled_position = scaled_position / self.paper_height
         from_center = \
@@ -160,7 +161,7 @@ class CabinetPlotter:
         
         return drawing_positions
 
-    def compute_section_drawing_positions(self):
+    def compute_section_drawing_positions(self) -> None:
         self.section_pairs_in = \
             [self._to_inches(section) for section in self.section_pairs]
         drawing_positions = []
@@ -174,7 +175,7 @@ class CabinetPlotter:
         
         self.section_pairs_positions = drawing_positions
      
-    def plot_cabinet(self, compute_only: bool = False):
+    def plot_cabinet(self, compute_only: bool = False) -> None:
         self._set_orientation()
         self._basic_computations()
         self.compute_dimensions_in_inches()
@@ -411,10 +412,10 @@ class SectionPlotter:
         axis_1 = figure.add_subplot(plotting_grid[0, 0])
         # Elevation.
         # Box.
-        horizontal_offset = .1
+        horizontal_offset = .15
         for index, cabinet in enumerate(self.cabinets):
             if index != 0:
-                horizontal_offset += cabinet.cabinet_relative_width
+                horizontal_offset += self.cabinets[index-1].cabinet_relative_width
             axis_1.add_patch(
                 Rectangle(
                     xy=(horizontal_offset, .15), 
