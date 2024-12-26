@@ -265,7 +265,7 @@ class CupboardElevation:
 
     def get_section_indications(self):
 
-        assert self._section_indications, 'No indications.'
+        #assert self._section_indications, 'No indications.'
 
         return self._section_indications
 
