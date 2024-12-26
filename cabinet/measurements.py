@@ -208,10 +208,10 @@ class CupboardElevation:
 
     def compute_elevation(self):
         self._create_positions()
-        if len(self.sections) > 1:
+        if self.sections:
             self._indicate_sections()
-        self._indicate_hinges()
-        if len(self.drawers) > 0:
+            self._indicate_hinges()
+        if self.drawers:
             self._indicate_drawers()
         if self.shelves:
             self._indicate_shelves()  
