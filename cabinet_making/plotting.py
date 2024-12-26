@@ -1,9 +1,10 @@
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as grid
 from matplotlib.patches import Rectangle, Circle
+from cabinet_making.base_classes import BaseElevation
 
 
-class CabinetPlotter:
+class CabinetPlotter(BaseElevation):
 
     inch_in_mm = 25.4
     paper_height = 11.69
@@ -32,16 +33,12 @@ class CabinetPlotter:
                  sections: list[int] = None,
                  section_pairs: list[int] = None,
                  system_holes: list[int] = None) -> None:
+        super().__init__(height, sections, drawers, dividers, shelves)
         self.cabinet_type = cabinet_type
         self.orientation = orientation
-        self.height_mm = height
         self.depth_mm = depth
         self.width_mm = width
-        self.dividers = dividers
-        self.drawers = drawers
         self.drawer_front = drawer_front
-        self.shelves = shelves
-        self.sections = sections
         self.height_inch = None
         self.depth_inch = None
         self.width_inch = None
@@ -89,7 +86,7 @@ class CabinetPlotter:
         self.rail = self._to_unit(96)
 
     def compute_dimensions_in_inches(self):
-        self.height_inch = self._to_inches(self.height_mm)
+        self.height_inch = self._to_inches(self.height)
         self.depth_inch = self._to_inches(self.depth_mm)
         self.width_inch = self._to_inches(self.width_mm)
         # Non mandatory elements.

@@ -1,23 +1,5 @@
 import pandas as pd
-
-class BaseCorpus:
-    """Dimensions
-
-    """
-    def __init__(self,
-                 height: int, 
-                 width: int, 
-                 depth: int, 
-                 back_tolerance: int = 2,
-                 back_type: str = 'groove'):
-        self.height = height
-        self.width = width
-        self.depth = depth
-        self.back_tolerance = back_tolerance
-        self.back_type = back_type
-        self.side_edge_banding = None
-        self.top_bottom_edge_banding = None
-
+from cabinet_making.base_classes import BaseCorpus
 
 class Corpus(BaseCorpus):
     """Dimensions and edge banding according to Corpus type

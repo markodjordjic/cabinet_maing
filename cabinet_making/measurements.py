@@ -1,21 +1,18 @@
 from math import ceil
 import pandas as pd
 import numpy as np
+from cabinet_making.base_classes import BaseElevation
 
-class CupboardElevation:
+class CupboardElevation(BaseElevation):
 
-    def __init__(self, 
+    def __init__(self,
                  height: int,
-                 elevation_file: str,
                  sections: list[int] = [],
                  drawers: list[int] = [],
                  dividers: list[int] = [],
-                 shelves: int = None) -> None:     
-        self.height = height
-        self.sections = sections  # From top, gaps and reveals included.
-        self.dividers = dividers
-        self.shelves = shelves
-        self.drawers = drawers
+                 shelves: int = None,
+                 elevation_file: str = None) -> None:
+        super().__init__(height, sections, drawers, dividers, shelves)
         self.elevation_file = elevation_file
         self._positions = None
         self._section_indications = None
