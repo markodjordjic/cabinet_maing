@@ -142,7 +142,8 @@ class CupboardElevation(BaseElevation):
             repeats = len(self._positions) - len(indices) - len(repeats_before)
             if repeats >= 0:
                 repeats_after = np.repeat(
-                    np.nan, repeats=(len(self._positions)-len(indices)-len(repeats_before))
+                    np.nan, 
+                    repeats=(len(self._positions)-len(indices)-len(repeats_before))
                 ).tolist()
             else:
                 truncated_indices = indices[0:len(indices)+repeats]

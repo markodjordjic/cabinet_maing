@@ -1,5 +1,5 @@
 from cabinet_making.measurements import CupboardElevation
-from cabinet_making.plotting import CabinetPlotter
+from cabinet_making.plots import CabinetPlotter
 
 
 class CabinetMaker:
