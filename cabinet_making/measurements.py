@@ -1,21 +1,20 @@
 from math import ceil
 import pandas as pd
 import numpy as np
+from cabinet_making.base_classes import BaseElevation
 
-class CupboardElevation:
+class CupboardElevation(BaseElevation):
 
-    def __init__(self, 
+    def __init__(self,
                  height: int,
-                 elevation_file: str,
                  sections: list[int] = [],
                  drawers: list[int] = [],
                  dividers: list[int] = [],
-                 shelves: int = None) -> None:     
-        self.height = height
-        self.sections = sections  # From top, gaps and reveals included.
-        self.dividers = dividers
-        self.shelves = shelves
-        self.drawers = drawers
+                 drawer_reference: int = 0,
+                 shelves: int = None,
+                 elevation_file: str = None) -> None:
+        super().__init__(height, sections, drawers, dividers, shelves)
+        self.drawer_reference = drawer_reference
         self.elevation_file = elevation_file
         self._positions = None
         self._section_indications = None
@@ -76,21 +75,26 @@ class CupboardElevation:
             
     def _indicate_drawers(self):
         #top_bottom_clarence = 48
-        drawer_face_height = [160, 160, 160, 160]  # With gaps/reveals.
-        starting_position = [96]
-        drawers_from_bottom = starting_position + drawer_face_height        
+        drawers_from_bottom = [self.drawer_reference] + self.drawers
         cumulative_drawer_heights = np.cumsum(drawers_from_bottom)
         drawer_indices = []
         drawer_indices_labels = []
-        for index, drawer_face in enumerate(drawer_face_height):
+        for index, drawer_face in enumerate(self.drawers):
             # One less iteration then cumulative heights, because of different
             # lengths.
             drawer_vertical_center = drawer_face / 2
-            drawer_index = cumulative_drawer_heights[index] + drawer_vertical_center
+            drawer_index = \
+                cumulative_drawer_heights[index] + drawer_vertical_center
+            # Drawers may register on, or between system holes. Therefore,
+            # adjustment is necessary.
+            adjustment_indicator = 'system reg.'
+            if drawer_index % 32 != 0:
+                drawer_index += 16  # Because indexation is from the bottom.
+                adjustment_indicator = 'shifted reg.'
             drawer_indices.extend([drawer_index])
-            drawer_indices_labels.extend([f"Drawer slide {index}"])
+            drawer_indices_labels.extend([f"Drawer slide {index}, {adjustment_indicator}"])
         for index, drawer_index in enumerate(drawer_indices):
-            selection = self._positions.iloc[:, 1] == drawer_index - 16  # TODO: Addition or subtraction!
+            selection = self._positions.iloc[:, 1] == drawer_index
             self._positions.loc[selection, 'drawer_indication'] = drawer_indices_labels[index]
 
     def _indicate_shelves(self):
@@ -145,7 +149,8 @@ class CupboardElevation:
             repeats = len(self._positions) - len(indices) - len(repeats_before)
             if repeats >= 0:
                 repeats_after = np.repeat(
-                    np.nan, repeats=(len(self._positions)-len(indices)-len(repeats_before))
+                    np.nan, 
+                    repeats=(len(self._positions)-len(indices)-len(repeats_before))
                 ).tolist()
             else:
                 truncated_indices = indices[0:len(indices)+repeats]
@@ -261,11 +266,14 @@ class CupboardElevation:
         indication = self._positions.loc[:, relevant_column_names] != '-'
         relevant_rows = np.any(indication, axis=1)
         
-        return self._positions.loc[relevant_rows, 1].tolist()
+        return {
+            'positions': self._positions.loc[relevant_rows, 1].tolist(),
+            'registration': self._positions.loc[relevant_rows, 'drawer_indication'].tolist()
+        }
 
     def get_section_indications(self):
 
-        assert self._section_indications, 'No indications.'
+        #assert self._section_indications, 'No indications.'
 
         return self._section_indications
 

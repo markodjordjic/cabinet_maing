@@ -1,9 +1,10 @@
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as grid
 from matplotlib.patches import Rectangle, Circle
+from cabinet_making.base_classes import BaseElevation
 
 
-class CabinetPlotter:
+class CabinetPlotter(BaseElevation):
 
     inch_in_mm = 25.4
     paper_height = 11.69
@@ -32,16 +33,12 @@ class CabinetPlotter:
                  sections: list[int] = None,
                  section_pairs: list[int] = None,
                  system_holes: list[int] = None) -> None:
+        super().__init__(height, sections, drawers, dividers, shelves)
         self.cabinet_type = cabinet_type
         self.orientation = orientation
-        self.height_mm = height
         self.depth_mm = depth
         self.width_mm = width
-        self.dividers = dividers
-        self.drawers = drawers
         self.drawer_front = drawer_front
-        self.shelves = shelves
-        self.sections = sections
         self.height_inch = None
         self.depth_inch = None
         self.width_inch = None
@@ -89,7 +86,7 @@ class CabinetPlotter:
         self.rail = self._to_unit(96)
 
     def compute_dimensions_in_inches(self):
-        self.height_inch = self._to_inches(self.height_mm)
+        self.height_inch = self._to_inches(self.height)
         self.depth_inch = self._to_inches(self.depth_mm)
         self.width_inch = self._to_inches(self.width_mm)
         # Non mandatory elements.
@@ -97,8 +94,8 @@ class CabinetPlotter:
             self.dividers_in = self._to_inches(millimeters=self.dividers)
         if self.shelves:
             self.shelves_in_inch = self._to_inches(millimeters=self.shelves)
-        if self.drawers:
-            self.drawers_in = self._to_inches(millimeters=self.drawers)
+        if len(self.drawers['positions'])> 0:
+            self.drawers_in = self._to_inches(millimeters=self.drawers['positions'])
         if self.sections:
             self.sections_in = self._to_inches(millimeters=self.sections)
 
@@ -177,7 +174,9 @@ class CabinetPlotter:
         
         self.section_pairs_positions = drawing_positions
      
-    def plot_cabinet(self, compute_only: bool = False) -> None:
+    def plot_cabinet(self, 
+                     compute_only: bool = False, 
+                     plot_file: str = None) -> None:
         self._set_orientation()
         self._basic_computations()
         self.compute_dimensions_in_inches()
@@ -322,16 +321,19 @@ class CabinetPlotter:
                     linestyle='--'
                 ))
         # Drawers.
-        if self.drawers:
-            for index, drawer in enumerate(self.drawers_in):
+        if len(self.drawers['positions']) > 0:
+            for index, drawer in enumerate(self.drawers_in[::-1]):
                 x, y = self._compute_drawing_position(drawer)
                 drawer_front = self._to_unit(self.drawer_front[index])
                 drawer_box = drawer_front - (8*self.mm_6)
+                compensation = 0
+                if 'shifted' in self.drawers['registration'][::-1][index]:
+                    compensation = self.mm_32 * .5
                 # Box.
                 axis_1.add_patch(Rectangle(
                     xy=(
                         y + (10*self.mm_5), 
-                        x - (drawer_box/2)
+                        x - (drawer_box*.5) - compensation
                     ), 
                     width=self.cabinet_relative_depth - (10*self.mm_5), 
                     height=drawer_box,
@@ -341,7 +343,7 @@ class CabinetPlotter:
                 axis_1.add_patch(Rectangle(
                     xy=(
                         self.horizontal_reference + (self.cabinet_relative_depth/2) - self.rail, 
-                        x - (drawer_box/2) - (self.mm_32)
+                        x - (drawer_box*.5) - compensation - (self.mm_32)
                     ), 
                     width=self.rail, 
                     height=self.panel_thickness,
@@ -378,6 +380,25 @@ class CabinetPlotter:
                         facecolor='lightgray',
                     )
                 )
+        # Drawers.
+        if self.drawers_in:
+            for index, drawer in enumerate(self.drawers_in[::-1]):
+                x, y = self._compute_drawing_position(drawer)
+                axis_1.add_patch(
+                    Rectangle(
+                        xy=(
+                            horizontal_offset+(self.mm_3*.5), 
+                            x - (self._to_unit(self.drawer_front[index]*.5))
+                        ), 
+                        width=self.cabinet_relative_width - self.mm_3,  # Compensate for being pushed.
+                        height=(
+                            self._to_unit(self.drawer_front[index])
+                        ) - (self.mm_3), 
+                        fill=True,
+                        facecolor='lightgray',
+                    )
+                )
+
         axis_1.tick_params(labeltop=True, labelright=True)
         axis_1.tick_params(axis='both', direction='in')
         axis_1.tick_params(bottom=True, top=True, left=True, right=True) 
@@ -385,7 +406,7 @@ class CabinetPlotter:
         axis_1.set_yticklabels([])
         #figure.subplots_adjust(left=.25, right=.75)
         plt.tight_layout()
-        plt.savefig(fname='cabinet.pdf', dpi=1200, format='pdf')
+        plt.savefig(fname=plot_file, dpi=1200, format='pdf')
         plt.close('all')
 
 
@@ -517,7 +538,6 @@ class SectionPlotter:
         plt.show()
 
     def _reorder_plots(self):
-
         for cabinet_plot in self.cabinets:
             match cabinet_plot.cabinet_type:
                 case 'wall':
