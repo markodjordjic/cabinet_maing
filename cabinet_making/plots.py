@@ -1,3 +1,5 @@
+import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as grid
 from matplotlib.patches import Rectangle, Circle
@@ -23,6 +25,7 @@ class CabinetPlotter(BaseElevation):
     def __init__(self,
                  cabinet_type: str = 'floor',
                  orientation: str = 'portrait',
+                 material: pd.DataFrame = None,
                  height: int = None, 
                  depth: int = None, 
                  width: int = None,
@@ -37,6 +40,7 @@ class CabinetPlotter(BaseElevation):
         super().__init__(height, sections, drawers, dividers, shelves)
         self.cabinet_type = cabinet_type
         self.orientation = orientation
+        self.material = material
         self.depth_mm = depth
         self.width_mm = width
         self.drawer_front = drawer_front
@@ -441,6 +445,28 @@ class CabinetPlotter(BaseElevation):
                         facecolor='lightgray',
                     )
                 )
+        if self.material is not None:
+            content = self.material.values
+            table = axis_1.table(
+                cellText=content,
+                loc='bottom',
+                rasterized=True
+            )
+            # Set properties of cells.
+            for cell in table._cells:
+                table._cells[cell].set_text_props(linespacing=1)
+                table._cells[cell].set_height(.066)
+                # Set alignment of leading rows and columns.
+                if cell[0] == 0:
+                    table._cells[cell]._loc = 'right'
+                    # if rotate:
+                    #     table._cells[cell].get_text().set_rotation(90)
+                    #     table._cells[cell].set_height(.4)
+                if (cell[1] == 0) and (cell[0] != 0):
+                    table._cells[cell]._loc = 'right'
+            # Set font size.
+            table.auto_set_font_size(False)
+            table.set_fontsize(10)
         axis_1.tick_params(labeltop=True, labelright=True)
         axis_1.tick_params(axis='both', direction='in')
         axis_1.tick_params(bottom=True, top=True, left=True, right=True) 

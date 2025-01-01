@@ -84,6 +84,7 @@ class CabinetMaker:
         self.plotter = CabinetPlotter(
             cabinet_type=self.cabinet_type,
             orientation=self.orientation,
+            material=self.measurements,
             height=self.height_mm,
             depth=self.depth_mm,
             width=self.width_mm,
