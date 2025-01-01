@@ -399,16 +399,21 @@ class CabinetPlotter(BaseElevation):
             for index, section_pair in enumerate(self.section_pairs_positions):
                 doors_per_section = self.doors_per_section[index]
                 if doors_per_section == 0:
+                    # Section with no doors.
                     pass                               
                 if doors_per_section >= 1:
+                    # Section with at least one door.
                     width = \
-                        (self.cabinet_relative_width-self.mm_3) / doors_per_section
+                        (self.cabinet_relative_width/doors_per_section) - self.mm_3
                     for door in range(0, doors_per_section):
+                        door_compensation = 0
+                        if door > 0:
+                            door_compensation = self.mm_3
                         axis_1.add_patch(
                             Rectangle(
                                 xy=(
-                                    horizontal_offset + (self.mm_3*.5) + door*width, 
-                                    1-section_pair[1][0]+(self.mm_3*.5)
+                                    horizontal_offset + (self.mm_3*.5) + door*width + door_compensation, 
+                                    1 - section_pair[1][0] + (self.mm_3*.5)
                                 ), 
                                 width=width,  # Compensate for being pushed.
                                 height=(
