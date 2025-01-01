@@ -16,17 +16,14 @@ class Corpus(BaseCorpus):
                  width: int,
                  depth: int,
                  back_tolerance: int,
-                 back_type: 'rabbet',
                  top_type: str = 'one-piece', 
                  back: bool = True):
         super().__init__(height=height, 
                          width=width, 
                          depth=depth, 
-                         back_tolerance=back_tolerance,
-                         back_type=back_type)       
+                         back_tolerance=back_tolerance)       
         self.top_type = top_type
         self.back = back
-        self.back_type = back_type
         self.inner_width = None
         self.material = []
         self.side_edge_banding = "N/A"
@@ -186,6 +183,7 @@ class WallCabinet(Corpus):
     -------
     _type_
         _description_
+
     """
 
     door_edge_banding = 'u krug'
@@ -292,13 +290,18 @@ class FloorCabinet(Corpus):
                  back_tolerance: int = 2,
                  top_type: str = 'two-piece',
                  top_relief: int = 0,
-                 doors: int = 0,
-                 front_heights: list[int] = []):
+                 doors: int = None,
+                 sections: list[int] = None,
+                 doors_per_section: list[int] = None,
+                 front_heights: list[int] = None):
         super().__init__(height=height, 
                          width=width, 
                          depth=depth,
                          top_type=top_type, 
                          back_tolerance=back_tolerance)
+        self.sections = sections
+        self.doors = doors
+        self.doors_per_section = doors_per_section
         self.drawers = drawers
         self.top_relief = top_relief
         self.drawer_stretcher_banding = 'N/A'
@@ -324,13 +327,9 @@ class FloorCabinet(Corpus):
         )
 
         drawer.compute_material()
-        
         box_sides = drawer.get_drawer_box_sides()
-        
         box_front_back = drawer.get_drawer_front_back()
-
-        back = drawer.get_drawer_bottom()
-      
+        back = drawer.get_drawer_bottom()     
         front = drawer.get_drawer_front()
 
         return pd.DataFrame.from_records([
@@ -345,10 +344,31 @@ class FloorCabinet(Corpus):
 
         return pd.concat(drawers)
     
-    def _compute_doors(self):
-        pass
-    
+    def _compute_doors(self) -> pd.DataFrame:
+        """_summary_
+
+        Returns
+        -------
+        pd.DataFrame
+            _description_
+
+        """
+        doors = []
+        for section_index in range(0, len(self.sections)):
+            for door_count in self.doors_per_section:
+                if door_count > 0:
+                    doors.append([
+                        'Front',
+                        f'Door, section {section_index}',
+                        self.width - door_count*3,
+                        self.height - 3,
+                        'u krug'
+                    ])
+
+        return pd.DataFrame.from_records(doors)
+
     def _compute_stretchers(self):
+        
         return pd.DataFrame.from_records(
                 [[
                     'Korpus',
@@ -360,17 +380,25 @@ class FloorCabinet(Corpus):
                 ]]
             )           
 
-    def compute_total_material(self):
+    def compute_total_material(self):        
         corpus_material = super().compute_corpus_material()
-        drawers = self._compute_drawers()
-        material = pd.concat([corpus_material, drawers])
-        if len(self.drawers) > 2:
-            self._drawer_stretcher_banding()
-            drawer_stretcher = self._compute_stretchers()
-            material = pd.concat([corpus_material, drawers, drawer_stretcher])
-        material.reset_index(inplace=True, drop=True)
+        output = corpus_material  # Mandatory.
+        drawers = pd.DataFrame()  # Place-holder.
+        drawer_stretcher = pd.DataFrame()  # Placeholder.
+        doors = pd.DataFrame()  # Place-holder.
+        if self.drawers:
+            drawers = self._compute_drawers()
+            output = pd.concat([corpus_material, drawers])
+            if len(self.drawers) > 2:
+                self._drawer_stretcher_banding()
+                drawer_stretcher = self._compute_stretchers()
+                output = pd.concat([corpus_material, drawers, drawer_stretcher])
+        if self.doors:
+            doors = self._compute_doors()
+            output = pd.concat([corpus_material, drawers, drawer_stretcher, doors])
+        output.reset_index(inplace=True, drop=True)
 
-        return material
+        return output
 
 
 class Drawer(BaseCorpus):
@@ -621,13 +649,13 @@ class Cupboard(Corpus):
         pass
 
     def _compute_h_dividers(self):
-        if self.h_dividers > 0:
+        if self.h_dividers:
             self.material.extend([[
                 'Korpus',
                 'Horizontal Dividers',
                 self.inner_width,
                 self.h_divider_depth,
-                self.h_dividers,
+                len(self.h_dividers),
                 self.h_dividers_banding
             ]])
             self.material.extend([[
@@ -635,7 +663,7 @@ class Cupboard(Corpus):
                 'Rails',
                 self.inner_width,
                 96,
-                self.h_dividers,
+                len(self.h_dividers),
                 'jedna duza'
             ]])
 
@@ -652,7 +680,7 @@ class Cupboard(Corpus):
 
     def _compute_drawers(self):
 
-        if self.drawers > 0:
+        if self.drawers:
 
             for drawer_face_height in self.drawer_face_height: 
 

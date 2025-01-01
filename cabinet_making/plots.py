@@ -31,6 +31,7 @@ class CabinetPlotter(BaseElevation):
                  drawers: list[int] = None,
                  drawer_front: list[int] = None,
                  sections: list[int] = None,
+                 doors_per_section: list[int] = None,
                  section_pairs: list[int] = None,
                  system_holes: list[int] = None) -> None:
         super().__init__(height, sections, drawers, dividers, shelves)
@@ -39,6 +40,8 @@ class CabinetPlotter(BaseElevation):
         self.depth_mm = depth
         self.width_mm = width
         self.drawer_front = drawer_front
+        self.sections = sections
+        self.doors_per_section = doors_per_section
         self.height_inch = None
         self.depth_inch = None
         self.width_inch = None
@@ -211,7 +214,6 @@ class CabinetPlotter(BaseElevation):
             if 'hinge' not in self.system_holes['labels'][index]:
                 x = self.depth_from_center + self.cabinet_relative_depth - self.mm_37 - (((self.depth_mm/32)-4) * self.mm_32) 
                 axis_1.add_patch(Circle(xy=(x, y), radius=self.mm_5))
-
         # Bottom.
         axis_1.add_patch(
             Rectangle(
@@ -222,6 +224,7 @@ class CabinetPlotter(BaseElevation):
                 hatch='/////'
             )
         )
+        # Bottom nailer.
         axis_1.add_patch(
             Rectangle(
                 xy=(
@@ -235,18 +238,45 @@ class CabinetPlotter(BaseElevation):
             )
         )
         # Top.
-        axis_1.add_patch(
-            Rectangle(
-                xy=(
-                    self.depth_from_center, 
-                    (self.cabinet_top - self.panel_thickness)
-                ),
-                width=self.cabinet_relative_depth,
-                height=self.panel_thickness,
-                fill=False,
-                hatch='/////'
+        if (self.cabinet_type == 'wall') or (self.cabinet_type == 'cupboard'):
+            axis_1.add_patch(
+                Rectangle(
+                    xy=(
+                        self.depth_from_center, 
+                        (self.cabinet_top - self.panel_thickness)
+                    ),
+                    width=self.cabinet_relative_depth,
+                    height=self.panel_thickness,
+                    fill=False,
+                    hatch='/////'
+                )
             )
-        )
+        if self.cabinet_type == 'floor':
+            axis_1.add_patch(
+                Rectangle(
+                    xy=(
+                        self.depth_from_center, 
+                        (self.cabinet_top - self.panel_thickness)
+                    ),
+                    width=self.rail,
+                    height=self.panel_thickness,
+                    fill=False,
+                    hatch='/////'
+                )
+            )
+            axis_1.add_patch(
+                Rectangle(
+                    xy=(
+                        self.depth_from_center+(self.cabinet_relative_depth)-self.rail, 
+                        (self.cabinet_top - self.panel_thickness)
+                    ),
+                    width=self.rail,
+                    height=self.panel_thickness,
+                    fill=False,
+                    hatch='/////'
+                )
+            )
+        # Top nailer.
         axis_1.add_patch(
             Rectangle(
                 xy=(
@@ -350,8 +380,7 @@ class CabinetPlotter(BaseElevation):
                     fill=False,
                     hatch='/////'
                 ))                
-        # Elevation.
-        # Box.
+        # Elevation, box.
         horizontal_offset = \
             1 - self.horizontal_reference - (self.cabinet_relative_width/2)
         axis_1.add_patch(
@@ -363,23 +392,37 @@ class CabinetPlotter(BaseElevation):
                 facecolor='k'
             )
         )
-        # Sections.
-        if self.section_pairs_positions:
+        # Elevation, doors.
+        if self.section_pairs_positions and self.doors_per_section:
+            assert len(self.section_pairs) == len(self.doors_per_section), \
+                'Section count and doors per section count do not match.'
             for index, section_pair in enumerate(self.section_pairs_positions):
-                axis_1.add_patch(
-                    Rectangle(
-                        xy=(
-                            horizontal_offset+(self.mm_3*.5), 
-                            1-section_pair[1][0]+(self.mm_3*.5)
-                        ), 
-                        width=self.cabinet_relative_width - self.mm_3,  # Compensate for being pushed.
-                        height=(
-                            self._to_unit(self.sections[index])
-                        ) - (self.mm_3), 
-                        fill=True,
-                        facecolor='lightgray',
-                    )
-                )
+                doors_per_section = self.doors_per_section[index]
+                if doors_per_section == 0:
+                    # Section with no doors.
+                    pass                               
+                if doors_per_section >= 1:
+                    # Section with at least one door.
+                    width = \
+                        (self.cabinet_relative_width/doors_per_section) - self.mm_3
+                    for door in range(0, doors_per_section):
+                        door_compensation = 0
+                        if door > 0:
+                            door_compensation = self.mm_3
+                        axis_1.add_patch(
+                            Rectangle(
+                                xy=(
+                                    horizontal_offset + (self.mm_3*.5) + door*width + door_compensation, 
+                                    1 - section_pair[1][0] + (self.mm_3*.5)
+                                ), 
+                                width=width,
+                                height=(
+                                    self._to_unit(self.sections[index])
+                                ) - (self.mm_3), 
+                                fill=True,
+                                facecolor='lightgray',
+                            )
+                        )
         # Drawers.
         if self.drawers_in:
             for index, drawer in enumerate(self.drawers_in[::-1]):
@@ -398,7 +441,6 @@ class CabinetPlotter(BaseElevation):
                         facecolor='lightgray',
                     )
                 )
-
         axis_1.tick_params(labeltop=True, labelright=True)
         axis_1.tick_params(axis='both', direction='in')
         axis_1.tick_params(bottom=True, top=True, left=True, right=True) 
@@ -426,8 +468,8 @@ class SectionPlotter:
     mm_3 = 3 / inch_in_mm / coefficient / paper_height
     rail = 96 / inch_in_mm / coefficient / paper_height
 
-    def __init__(self, cabinets: list = None):
-        self.cabinets = cabinets
+    def __init__(self, section: list = None):
+        self.section = section
         self.wall_section = []
         self.floor_section = []
 
@@ -443,8 +485,8 @@ class SectionPlotter:
             for cabinet in self.floor_section
         ]
         floor_section_total = sum(floor_cabinet_widths)
-        horizontal_offset_floor = .5 - (floor_section_total/2)
-        horizontal_offset_wall = .5 - (floor_section_total/2)
+        horizontal_offset_floor = .5 - (floor_section_total*.5)
+        horizontal_offset_wall = .5 - (floor_section_total*.5)
         for index, cabinet in enumerate(self.floor_section):
             vertical_position = .15
             total_height = .15
@@ -538,11 +580,13 @@ class SectionPlotter:
         plt.show()
 
     def _reorder_plots(self):
-        for cabinet_plot in self.cabinets:
+        for cabinet_plot in self.section:
             match cabinet_plot.cabinet_type:
                 case 'wall':
                     self.wall_section.append(cabinet_plot)
                 case 'floor':
+                    self.floor_section.append(cabinet_plot)
+                case 'cupboard':
                     self.floor_section.append(cabinet_plot)
 
     def plot_section(self):
