@@ -415,7 +415,7 @@ class CabinetPlotter(BaseElevation):
                                     horizontal_offset + (self.mm_3*.5) + door*width + door_compensation, 
                                     1 - section_pair[1][0] + (self.mm_3*.5)
                                 ), 
-                                width=width,  # Compensate for being pushed.
+                                width=width,
                                 height=(
                                     self._to_unit(self.sections[index])
                                 ) - (self.mm_3), 
