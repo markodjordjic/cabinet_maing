@@ -106,7 +106,7 @@ class CabinetMaker:
                     height=self.height_mm,
                     width=self.width_mm,
                     depth=self.depth_mm,
-                    drawers=self.drawers,
+                    drawers=self.drawer_front,
                     doors=self.doors_per_section,
                     sections=self.sections,
                     doors_per_section=self.doors_per_section          

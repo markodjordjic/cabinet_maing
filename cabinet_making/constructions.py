@@ -373,7 +373,7 @@ class FloorCabinet(Corpus):
 
         return pd.DataFrame.from_records(doors)
 
-    def _compute_stretchers(self):
+    def _compute_stretchers(self) -> list:
         
         return pd.DataFrame.from_records(
                 [[
@@ -395,7 +395,8 @@ class FloorCabinet(Corpus):
         This does not mean that all sections must have doors.
         
         """
-        assert sum(self.sections) == self.height           
+        if self.sections:
+            assert sum(self.sections) == self.height           
 
     def compute_total_material(self):
         self._validate_section_dimensions()        
@@ -410,10 +411,19 @@ class FloorCabinet(Corpus):
             if len(self.drawers) > 2:
                 self._drawer_stretcher_banding()
                 drawer_stretcher = self._compute_stretchers()
-                output = pd.concat([corpus_material, drawers, drawer_stretcher])
+                output = pd.concat([
+                    corpus_material, 
+                    drawers, 
+                    drawer_stretcher
+                ])
         if self.doors:
             doors = self._compute_doors()
-            output = pd.concat([corpus_material, drawers, drawer_stretcher, doors])
+            output = pd.concat([
+                corpus_material, 
+                drawers, 
+                drawer_stretcher, 
+                doors
+            ])
         output.reset_index(inplace=True, drop=True)
 
         return output

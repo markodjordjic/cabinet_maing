@@ -474,8 +474,9 @@ class CabinetPlotter(BaseElevation):
                 [flat_index, pd.DataFrame(summary.values)], 
                 axis=1
             )
+            final_correct_type = final.astype({2: int, 3: int})
             table = axis_1.table(
-                cellText=final.values,
+                cellText=final_correct_type.values,
                 loc='bottom',
                 rasterized=True
             )
@@ -483,14 +484,13 @@ class CabinetPlotter(BaseElevation):
             for cell in table._cells:
                 table._cells[cell].set_text_props(linespacing=1)
                 table._cells[cell].set_height(.05)
-                # Set alignment of leading rows and columns.
-                if cell[0] == 0:
-                    table._cells[cell]._loc = 'right'
+                if (cell[1] == 0) or (cell[1] == 1) or (cell[1] == 5):
+                    table._cells[cell].set_text_props(ha="left")
                     # if rotate:
                     #     table._cells[cell].get_text().set_rotation(90)
                     #     table._cells[cell].set_height(.4)
-                if (cell[1] == 0) and (cell[0] != 0):
-                    table._cells[cell]._loc = 'right'
+                # if (cell[1] == 0) and (cell[0] != 0):
+                #     table._cells[cell]._loc = 'right'
             # Set font size.
             table.auto_set_font_size(False)
             table.set_fontsize(10)
@@ -506,7 +506,6 @@ class CabinetPlotter(BaseElevation):
 
 
 class SectionPlotter:
-
     inch_in_mm = 25.4
     paper_height = 8.27
     paper_width = 11.69
