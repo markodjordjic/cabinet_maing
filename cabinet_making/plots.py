@@ -1,3 +1,4 @@
+import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as grid
 from matplotlib.patches import Rectangle, Circle
@@ -23,6 +24,7 @@ class CabinetPlotter(BaseElevation):
     def __init__(self,
                  cabinet_type: str = 'floor',
                  orientation: str = 'portrait',
+                 material: pd.DataFrame = None,
                  height: int = None, 
                  depth: int = None, 
                  width: int = None,
@@ -37,6 +39,7 @@ class CabinetPlotter(BaseElevation):
         super().__init__(height, sections, drawers, dividers, shelves)
         self.cabinet_type = cabinet_type
         self.orientation = orientation
+        self.material = material
         self.depth_mm = depth
         self.width_mm = width
         self.drawer_front = drawer_front
@@ -153,7 +156,7 @@ class CabinetPlotter(BaseElevation):
 
         return from_center, self.depth_from_center
 
-    def compute_drawing_positions(self, real_positions: list[int] = None):
+    def compute_drawing_positions(self, real_positions: list[int] = None) -> list[int]:
         drawing_positions = []
         for real_position in real_positions:
             drawing_position = self._compute_drawing_position(
@@ -207,13 +210,17 @@ class CabinetPlotter(BaseElevation):
             )
         )
         # System holes.
-        for index, position in enumerate(self.system_holes['positions']):
-            x = self.depth_from_center + self.cabinet_relative_depth - self.mm_37
+        system_holes = self.system_holes['positions']
+        for index, position in enumerate(system_holes):
+            x = self.depth_from_center \
+                + self.cabinet_relative_depth - self.mm_37
             y = self.cabinet_bottom + self._to_unit(position)
             axis_1.add_patch(Circle(xy=(x, y), radius=self.mm_5))
             if 'hinge' not in self.system_holes['labels'][index]:
-                x = self.depth_from_center + self.cabinet_relative_depth - self.mm_37 - (((self.depth_mm/32)-4) * self.mm_32) 
-                axis_1.add_patch(Circle(xy=(x, y), radius=self.mm_5))
+                x = self.depth_from_center \
+                    + self.cabinet_relative_depth \
+                    - self.mm_37 - (((self.depth_mm/32)-4) * self.mm_32)  # 64 mm from the back.
+                axis_1.add_patch(Circle(xy=(x, y), radius=self.mm_5, fc='orange'))
         # Bottom.
         axis_1.add_patch(
             Rectangle(
@@ -344,11 +351,12 @@ class CabinetPlotter(BaseElevation):
             for shelve in self.shelves_in_inch:
                 x, y = self._compute_drawing_position(shelve)
                 axis_1.add_patch(Rectangle(
-                    xy=(y+self.mm_6, 1-x), 
+                    xy=(y+self.mm_6, x), 
                     width=self.cabinet_relative_depth - self.shelve_clearance_in, 
                     height=self.panel_thickness, 
                     fill=False,
-                    linestyle='--'
+                    linestyle='--',
+                    zorder=0
                 ))
         # Drawers.
         if len(self.drawers['positions']) > 0:
@@ -441,6 +449,51 @@ class CabinetPlotter(BaseElevation):
                         facecolor='lightgray',
                     )
                 )
+        # Tabulation of material.
+        if self.material is not None:
+            content = self.material
+            content.columns = [
+                'Materijal', 
+                'Part', 
+                'X', 
+                'Y', 
+                'Units', 
+                'Banding'
+            ]
+            summary = content.groupby(by=[
+                'Materijal', 
+                'Part', 
+                'X', 
+                'Y'
+            ]).aggregate({
+                'Units': sum,
+                'Banding': min
+            })
+            flat_index = pd.DataFrame.from_records(summary.index.to_flat_index())          
+            final = pd.concat(
+                [flat_index, pd.DataFrame(summary.values)], 
+                axis=1
+            )
+            final_correct_type = final.astype({2: int, 3: int})
+            table = axis_1.table(
+                cellText=final_correct_type.values,
+                loc='bottom',
+                rasterized=True
+            )
+            # Set properties of cells.
+            for cell in table._cells:
+                table._cells[cell].set_text_props(linespacing=1)
+                table._cells[cell].set_height(.05)
+                if (cell[1] == 0) or (cell[1] == 1) or (cell[1] == 5):
+                    table._cells[cell].set_text_props(ha="left")
+                    # if rotate:
+                    #     table._cells[cell].get_text().set_rotation(90)
+                    #     table._cells[cell].set_height(.4)
+                # if (cell[1] == 0) and (cell[0] != 0):
+                #     table._cells[cell]._loc = 'right'
+            # Set font size.
+            table.auto_set_font_size(False)
+            table.set_fontsize(10)
         axis_1.tick_params(labeltop=True, labelright=True)
         axis_1.tick_params(axis='both', direction='in')
         axis_1.tick_params(bottom=True, top=True, left=True, right=True) 
@@ -453,7 +506,6 @@ class CabinetPlotter(BaseElevation):
 
 
 class SectionPlotter:
-
     inch_in_mm = 25.4
     paper_height = 8.27
     paper_width = 11.69
@@ -491,7 +543,8 @@ class SectionPlotter:
             vertical_position = .15
             total_height = .15
             if (index != 0):
-                horizontal_offset_floor += self.floor_section[index-1].cabinet_relative_width
+                horizontal_offset_floor += \
+                    self.floor_section[index-1].cabinet_relative_width
             axis_1.add_patch(
                 Rectangle(
                     xy=(horizontal_offset_floor, vertical_position), 
@@ -553,7 +606,7 @@ class SectionPlotter:
             )
             if cabinet.sections:
                 sections_bottom_to_top = cabinet.sections_in[::-1]
-                for index in range(0, len(sections_bottom_to_top)):
+                for index in range(len(sections_bottom_to_top)):
                     current_section_height = \
                         sections_bottom_to_top[index] / self.coefficient / self.paper_height
                     axis_1.add_patch(
@@ -574,7 +627,6 @@ class SectionPlotter:
         axis_1.tick_params(bottom=True, top=True, left=True, right=True) 
         axis_1.set_xticklabels([])
         axis_1.set_yticklabels([])
-        #figure.subplots_adjust(left=.25, right=.75)
         plt.tight_layout()
         plt.savefig(fname='cabinet.pdf', dpi=1200, format='pdf')
         plt.show()

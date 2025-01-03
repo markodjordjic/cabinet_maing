@@ -84,6 +84,7 @@ class CabinetMaker:
         self.plotter = CabinetPlotter(
             cabinet_type=self.cabinet_type,
             orientation=self.orientation,
+            material=self.measurements,
             height=self.height_mm,
             depth=self.depth_mm,
             width=self.width_mm,
@@ -105,8 +106,8 @@ class CabinetMaker:
                     height=self.height_mm,
                     width=self.width_mm,
                     depth=self.depth_mm,
-                    drawers=self.drawers,
-                    doors=0,
+                    drawers=self.drawer_front,
+                    doors=self.doors_per_section,
                     sections=self.sections,
                     doors_per_section=self.doors_per_section          
                 )
@@ -115,6 +116,7 @@ class CabinetMaker:
                     height=self.height_mm,
                     width=self.width_mm,
                     depth=self.depth_mm,
+                    shelves=self.shelves,
                     doors=1,  # Doors need to be added to the CabinetMaker class.        
                 )
             case 'cupboard':
