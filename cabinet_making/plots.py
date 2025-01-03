@@ -476,8 +476,8 @@ class CabinetPlotter(BaseElevation):
             )
             final_correct_type = final.astype({2: int, 3: int})
             table = axis_1.table(
-                cellText=final_correct_type.values,
-                loc='bottom',
+                cellText=final_correct_type.iloc[:, 1:4].values,
+                loc=17,
                 rasterized=True
             )
             # Set properties of cells.
