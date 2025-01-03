@@ -107,7 +107,7 @@ class CabinetMaker:
                     width=self.width_mm,
                     depth=self.depth_mm,
                     drawers=self.drawers,
-                    doors=0,
+                    doors=self.doors_per_section,
                     sections=self.sections,
                     doors_per_section=self.doors_per_section          
                 )
@@ -116,6 +116,7 @@ class CabinetMaker:
                     height=self.height_mm,
                     width=self.width_mm,
                     depth=self.depth_mm,
+                    shelves=self.shelves,
                     doors=1,  # Doors need to be added to the CabinetMaker class.        
                 )
             case 'cupboard':
